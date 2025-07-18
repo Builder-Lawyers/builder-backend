@@ -1,4 +1,4 @@
-module builder
+module github.com/Builder-Lawyers/builder-backend/builder
 
 go 1.24.5
 

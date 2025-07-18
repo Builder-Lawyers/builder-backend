@@ -1,8 +1,8 @@
 package db
 
 import (
-	"env"
 	"fmt"
+	"github.com/Builder-Lawyers/builder-backend/env"
 	"strconv"
 )
 
@@ -22,7 +22,7 @@ func NewConfig() Config {
 	return Config{
 		Host:     env.GetEnv("PG_HOST", "localhost"),
 		Port:     port,
-		Database: env.GetGEnv("PG_DB", "postgres"),
+		Database: env.GetEnv("PG_DB", "postgres"),
 		User:     env.GetEnv("PG_USER", "postgres"),
 		Password: env.GetEnv("PG_PASSWORD", "postgres"),
 	}

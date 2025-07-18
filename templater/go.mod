@@ -1,4 +1,4 @@
-module builder-templater
+module github.com/Builder-Lawyers/builder-backend/templater
 
 go 1.24.5
 
