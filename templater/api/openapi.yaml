@@ -1,0 +1,86 @@
+openapi: 3.0.3
+info:
+  title: Builder Templater API
+  version: 1.0.0
+  description: API for provisioning user sites
+
+paths:
+  /provision:
+    post:
+      summary: Provision a new site
+      description: Provisions a site with a given template name, domain variants, and additional configuration fields.
+      operationId: provisionSite
+      tags:
+        - Sites
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProvisionSiteRequest'
+      responses:
+        '201':
+          description: Site provisioned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProvisionSiteResponse'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error during provisioning
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ProvisionSiteRequest:
+      type: object
+      properties:
+        siteID:
+          type: integer
+          format: uint64
+          example: 101
+        templateName:
+          type: integer
+          format: uint64
+          example: 202
+        domainVariants:
+          type: array
+          items:
+            type: string
+          example: ["example.com", "www.example.com"]
+        fields:
+          type: object
+          description: json object with all widgets and fields of a site
+          additionalProperties: true
+      required:
+        - siteID
+        - templateName
+        - domainVariants
+        - fields
+
+    ProvisionSiteResponse:
+      type: object
+      properties:
+        siteID:
+          type: integer
+          format: uint64
+          example: 101
+      required:
+        - siteID
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "invalid request"
+      required:
+        - error

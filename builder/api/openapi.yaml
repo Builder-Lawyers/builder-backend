@@ -1,0 +1,188 @@
+openapi: 3.0.3
+info:
+  title: Site Creation API
+  version: 1.0.0
+  description: API for creating user sites with templates
+
+paths:
+  /sites:
+    post:
+      summary: Create a new site
+      operationId: createSite
+      tags:
+        - Sites
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSiteRequest'
+      responses:
+        '201':
+          description: Site created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSiteResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sites/{id}:
+    put:
+      summary: Update an existing site
+      operationId: updateSite
+      tags:
+        - Sites
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSiteRequest'
+      responses:
+        '200':
+          description: Site updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateSiteResponse'
+        '400':
+          description: Invalid request or path parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /ai/enrich:
+    post:
+      summary: Enrich some user provided info using AI
+      operationId: enrichContent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrichContentRequest'
+      responses:
+        '200':
+          description: Content enriched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrichContentResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CreateSiteRequest:
+      type: object
+      properties:
+        templateID:
+          type: integer
+          format: uint8
+          example: 1
+        userID:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        fields:
+          type: object
+          description: json object with all widgets and fields of a site
+          additionalProperties: true
+      required:
+        - templateID
+        - userID
+
+    CreateSiteResponse:
+      type: object
+      properties:
+        siteID:
+          type: integer
+          format: uint64
+          example: 123456
+      required:
+        - siteID
+
+    UpdateSiteRequest:
+      type: object
+      properties:
+        templateID:
+          type: integer
+          format: uint8
+          example: 2
+        newStatus:
+          type: string
+          enum: [InCreation, AwaitingProvision, Created]
+          example: "Created"
+        fields:
+          type: array
+          items:
+            type: string
+          example: ["title", "theme", "domain"]
+      required:
+        - templateID
+
+    UpdateSiteResponse:
+      type: object
+      properties:
+        siteID:
+          type: integer
+          format: uint64
+          example: 123456
+      required:
+        - siteID
+
+    EnrichContentRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          example: "Some info about user"
+      required:
+        - content
+        # TODO: add some metadata for AI to better understand what kind of enrichment to perform
+
+    EnrichContentResponse:
+      type: object
+      properties:
+        enriched:
+          type: string
+          example: "Some info about user enriched"
+      required:
+        - enriched
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "invalid request"
+      required:
+        - error

@@ -1,0 +1,19 @@
+version: 3
+
+tasks:
+
+  init:
+    cmds:
+      - docker-compose -f docker-compose.yml up -d jodrive-db
+      - sleep 3
+      - docker exec -i jodrive-db psql -U sanity -d jodrive < ./config/keycloak/dump.sql
+      - sleep 2
+      - docker-compose -f docker-compose.yml up -d --build
+
+  run:
+    cmds:
+      - docker-compose -f docker-compose.dev.yml up -d
+
+  down:
+    cmds:
+      - docker-compose -f docker-compose.dev.yml down -v
