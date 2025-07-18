@@ -1,7 +1,7 @@
 package rest
 
 import (
-	"builder/internal/application/command"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/command"
 	"github.com/gofiber/fiber/v2"
 )
 

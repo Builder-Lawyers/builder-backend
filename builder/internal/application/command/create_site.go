@@ -1,12 +1,12 @@
 package command
 
 import (
-	"builder/internal/domain/entity"
-	"builder/internal/infra/client/templater"
-	"builder/internal/infra/db"
-	"builder/internal/presentation/rest"
 	"context"
 	"fmt"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/entity"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/templater"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/presentation/rest"
+	"github.com/Builder-Lawyers/builder-backend/db"
 	"time"
 )
 

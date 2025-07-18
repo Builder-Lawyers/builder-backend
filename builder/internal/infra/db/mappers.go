@@ -1,8 +1,8 @@
 package db
 
 import (
-	"builder/internal/domain/consts"
-	"builder/internal/domain/entity"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/consts"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/entity"
 )
 
 func MapSiteModelToEntity(site Site, user User) entity.Site {

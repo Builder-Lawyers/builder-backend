@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"builder/internal/domain/consts"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/consts"
 )
 
 type Site struct {

@@ -1,6 +1,9 @@
 package db
 
-import "time"
+import (
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/consts"
+	"time"
+)
 
 type Outbox struct {
 	ID        uint64              `db:"id"`

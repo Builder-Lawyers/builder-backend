@@ -1,7 +1,7 @@
 package templater
 
 import (
-	"builder/pkg/env"
+	"github.com/Builder-Lawyers/builder-backend/env"
 )
 
 type TemplaterConfig struct {

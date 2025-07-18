@@ -1,9 +1,9 @@
 package application
 
 import (
-	"builder-templater/internal/dns"
-	"builder-templater/internal/presentation/rest"
-	"builder-templater/internal/storage"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/dns"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/presentation/rest"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/storage"
 )
 
 type RequestProvision struct {

@@ -1,12 +1,11 @@
 package main
 
 import (
-	"builder/internal/application/command"
-	"builder/internal/infra/client/templater"
-	"builder/internal/infra/db"
-	"builder/internal/presentation/rest"
 	"context"
 	"fmt"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/command"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/templater"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/presentation/rest"
 	"github.com/gofiber/fiber/v2"
 	"log"
 	"os"

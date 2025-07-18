@@ -1,11 +1,11 @@
 package command
 
 import (
-	"builder/internal/domain/consts"
-	"builder/internal/infra/client/templater"
-	"builder/internal/infra/db"
-	"builder/internal/presentation/rest"
 	"context"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/consts"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/templater"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/db"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/presentation/rest"
 	"time"
 )
 
@@ -49,7 +49,7 @@ func (c UpdateSite) Execute(siteID uint64, req rest.UpdateSiteRequest) (uint64, 
 		if oldSite.Status == consts.AwaitingProvision {
 			siteProvision := db.Outbox{
 				Event:     "SiteAwaitingProvision",
-				Status:    consts.NotProcessed,
+				Status:    int(consts.NotProcessed),
 				CreatedAt: time.Now(),
 			}
 			_, err = tx.Exec(context.Background(), "INSERT INTO outbox(event, status, created_at) VALUES ($1, $2, $3)",

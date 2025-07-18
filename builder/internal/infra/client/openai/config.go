@@ -1,7 +1,7 @@
 package ai
 
 import (
-	"builder/pkg/env"
+	"github.com/Builder-Lawyers/builder-backend/env"
 	"strconv"
 )
 

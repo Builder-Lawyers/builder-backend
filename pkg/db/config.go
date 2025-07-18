@@ -2,7 +2,7 @@ package db
 
 import (
 	"fmt"
-	"pkg/env"
+	"github.com/Builder-Lawyers/builder-backend/pkg/env"
 	"strconv"
 )
 
