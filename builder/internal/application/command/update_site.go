@@ -6,15 +6,16 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/templater"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/db"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/presentation/rest"
+	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"time"
 )
 
 type UpdateSite struct {
-	db.UOWFactory
+	dbs.UOWFactory
 	templater.TemplaterClient
 }
 
-func NewUpdateSite(factory db.UOWFactory, client templater.TemplaterClient) UpdateSite {
+func NewUpdateSite(factory dbs.UOWFactory, client templater.TemplaterClient) UpdateSite {
 	return UpdateSite{UOWFactory: factory, TemplaterClient: client}
 }
 

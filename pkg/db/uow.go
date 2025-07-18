@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -38,7 +39,7 @@ type UOWFactory struct {
 	Conn Connection
 }
 
-func (u *UOWFactory) GetUoW() *UOW {
+func (u *UOWFactory) GetUoW() *interfaces.UoW {
 	return &UOW{
 		Conn: u.Conn,
 	}

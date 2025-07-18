@@ -1,5 +1,3 @@
-github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250718130208-cbe7c367d13d h1:x9GSd7n5fdU4nxOpLLtcZ+bDMH5od1mvgXEzWneHKgQ=
-github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250718130208-cbe7c367d13d/go.mod h1:c0cOv/37KH99xg2k9QUcq7M51LtAEId/o4sfx3Gfikw=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

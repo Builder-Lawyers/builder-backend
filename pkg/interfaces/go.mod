@@ -1,11 +1,8 @@
-module github.com/Builder-Lawyers/builder-backend/pkg/db
+module github.com/Builder-Lawyers/builder-backend/pkg/interfaces
 
 go 1.24.5
 
-require (
-	github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250718130208-cbe7c367d13d
-	github.com/jackc/pgx/v5 v5.7.5
-)
+require github.com/jackc/pgx/v5 v5.7.5
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect

@@ -11,6 +11,8 @@ require (
 )
 
 require (
+	github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250718130208-cbe7c367d13d // indirect
+	github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250718130208-cbe7c367d13d // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect

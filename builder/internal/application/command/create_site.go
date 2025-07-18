@@ -6,7 +6,7 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/entity"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/templater"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/presentation/rest"
-	"github.com/Builder-Lawyers/builder-backend/db"
+	"github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"time"
 )
 
