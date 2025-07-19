@@ -12,7 +12,9 @@ type UOW struct {
 	Tx   pgx.Tx
 }
 
-func (u UOW) Begin() (pgx.Tx, error) {
+var _ interfaces.UoW = (*UOW)(nil)
+
+func (u *UOW) Begin() (pgx.Tx, error) {
 	tx, err := u.Conn.BeginTx(context.Background(), pgx.TxOptions{DeferrableMode: pgx.Deferrable})
 	if err != nil {
 		return nil, fmt.Errorf("can't begin tx, %v", err)
@@ -21,14 +23,14 @@ func (u UOW) Begin() (pgx.Tx, error) {
 	return u.Tx, nil
 }
 
-func (u UOW) Commit() error {
+func (u *UOW) Commit() error {
 	if u.Tx == nil {
 		return fmt.Errorf("transaction is not started yet")
 	}
 	return u.Tx.Commit(context.Background())
 }
 
-func (u UOW) Rollback() error {
+func (u *UOW) Rollback() error {
 	if u.Tx == nil {
 		return fmt.Errorf("transaction is not started yet")
 	}
@@ -39,7 +41,7 @@ type UOWFactory struct {
 	Conn Connection
 }
 
-func (u *UOWFactory) GetUoW() *interfaces.UoW {
+func (u *UOWFactory) GetUoW() interfaces.UoW {
 	return &UOW{
 		Conn: u.Conn,
 	}

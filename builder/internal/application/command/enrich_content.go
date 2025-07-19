@@ -1,21 +1,21 @@
 package command
 
 import (
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/dto"
 	ai "github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/openai"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/presentation/rest"
 )
 
 type EnrichContent struct {
 	aiClient *ai.OpenAIClient
 }
 
-func NewEnrichContent(client ai.OpenAIClient) EnrichContent {
+func NewEnrichContent(client *ai.OpenAIClient) EnrichContent {
 	return EnrichContent{
-		&client,
+		client,
 	}
 }
 
-func (c EnrichContent) Execute(req rest.EnrichContentRequest) (string, error) {
+func (c EnrichContent) Execute(req dto.EnrichContentRequest) (string, error) {
 	enriched, err := c.aiClient.EnrichContent(req.Content)
 	if err != nil {
 		return "", err

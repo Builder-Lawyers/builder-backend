@@ -23,3 +23,11 @@ CREATE TABLE IF NOT EXISTS builder.templates (
     id SMALLINT PRIMARY KEY,
     name VARCHAR(100) NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS builder.outbox (
+    id BIGINT GENERATED ALWAYS AS IDENTITY,
+    event VARCHAR(200) NOT NULL,
+    status VARCHAR(60) NOT NULL,
+    payload JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
+);

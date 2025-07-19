@@ -2,6 +2,7 @@ package rest
 
 import (
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/command"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/dto"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -16,17 +17,17 @@ func NewServer(commands command.Collection) Server {
 }
 
 func (s Server) CreateSite(c *fiber.Ctx) error {
-	var req CreateSiteRequest
+	var req dto.CreateSiteRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{Error: err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
 	siteID, err := s.commands.CreateSite.Execute(req)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{Error: err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	resp := CreateSiteResponse{
+	resp := dto.CreateSiteResponse{
 		SiteID: siteID,
 	}
 
@@ -34,17 +35,17 @@ func (s Server) CreateSite(c *fiber.Ctx) error {
 }
 
 func (s Server) UpdateSite(c *fiber.Ctx, id uint64) error {
-	var req UpdateSiteRequest
+	var req dto.UpdateSiteRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{Error: err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
 	updatedSiteID, err := s.commands.UpdateSite.Execute(id, req)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{Error: err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	resp := UpdateSiteResponse{
+	resp := dto.UpdateSiteResponse{
 		SiteID: updatedSiteID,
 	}
 
@@ -52,17 +53,17 @@ func (s Server) UpdateSite(c *fiber.Ctx, id uint64) error {
 }
 
 func (s Server) EnrichContent(c *fiber.Ctx) error {
-	var req EnrichContentRequest
+	var req dto.EnrichContentRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{Error: err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
 	enrichContent, err := s.commands.EnrichContent.Execute(req)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{Error: err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	resp := EnrichContentResponse{
+	resp := dto.EnrichContentResponse{
 		Enriched: enrichContent,
 	}
 

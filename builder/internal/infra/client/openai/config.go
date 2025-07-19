@@ -18,7 +18,7 @@ func NewOpenAIConfig() OpenAIConfig {
 	}
 	return OpenAIConfig{
 		apiKey:    env.GetEnv("OPENAI_KEY", ""),
-		model:     env.GetEnv("OPENAI_MODEL", ""),
+		model:     env.GetEnv("OPENAI_MODEL", ""), // TODO: make it configurable with a feature-flag
 		maxTokens: int64(maxTokens),
 	}
 }

@@ -2,10 +2,10 @@ package command
 
 import (
 	"context"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/dto"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/consts"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/templater"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/db"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/presentation/rest"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"time"
 )
@@ -19,7 +19,7 @@ func NewUpdateSite(factory dbs.UOWFactory, client templater.TemplaterClient) Upd
 	return UpdateSite{UOWFactory: factory, TemplaterClient: client}
 }
 
-func (c UpdateSite) Execute(siteID uint64, req rest.UpdateSiteRequest) (uint64, error) {
+func (c UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, error) {
 	var oldSiteModel db.Site
 	var creator db.User
 
@@ -28,11 +28,11 @@ func (c UpdateSite) Execute(siteID uint64, req rest.UpdateSiteRequest) (uint64, 
 	if err != nil {
 		return 0, err
 	}
-	err = tx.QueryRow(context.Background(), "SELECT creator_id, template_id, status from sites WHERE id = $1", siteID).Scan(&oldSiteModel)
+	err = tx.QueryRow(context.Background(), "SELECT creator_id, template_id, status from builder.sites WHERE id = $1", siteID).Scan(&oldSiteModel)
 	if err != nil {
 		return 0, err
 	}
-	err = tx.QueryRow(context.Background(), "SELECT id, first_name, second_name, email, created_at from users WHERE id = $1", oldSiteModel.CreatorID).Scan(&creator)
+	err = tx.QueryRow(context.Background(), "SELECT id, first_name, second_name, email, created_at from builder.users WHERE id = $1", oldSiteModel.CreatorID).Scan(&creator)
 	if err != nil {
 		return 0, err
 	}
@@ -42,7 +42,7 @@ func (c UpdateSite) Execute(siteID uint64, req rest.UpdateSiteRequest) (uint64, 
 		// Created - request came from templater, site is ready
 		// AwaitingProvision - from frontend, all fields are filled in by user
 		oldSite.UpdateState(consts.Status(*req.NewStatus))
-		_, err = tx.Exec(context.Background(), "UPDATE sites SET status = $1, updated_at = $2 WHERE id = $3", oldSite.Status, time.Now(), siteID)
+		_, err = tx.Exec(context.Background(), "UPDATE builder.sites SET status = $1, updated_at = $2 WHERE id = $3", oldSite.Status, time.Now(), siteID)
 		if err != nil {
 			return 0, err
 		}
@@ -53,7 +53,7 @@ func (c UpdateSite) Execute(siteID uint64, req rest.UpdateSiteRequest) (uint64, 
 				Status:    int(consts.NotProcessed),
 				CreatedAt: time.Now(),
 			}
-			_, err = tx.Exec(context.Background(), "INSERT INTO outbox(event, status, created_at) VALUES ($1, $2, $3)",
+			_, err = tx.Exec(context.Background(), "INSERT INTO builder.outbox(event, status, created_at) VALUES ($1, $2, $3)",
 				siteProvision.Event, siteProvision.Status, siteProvision.CreatedAt)
 			if err != nil {
 				return 0, err
@@ -66,7 +66,7 @@ func (c UpdateSite) Execute(siteID uint64, req rest.UpdateSiteRequest) (uint64, 
 
 	} else if req.Fields != nil {
 		// update site's template or/and fields
-		_, err = tx.Exec(context.Background(), "UPDATE sites SET fields = $1, updated_at = $2 WHERE id = $3", req.Fields, time.Now(), siteID)
+		_, err = tx.Exec(context.Background(), "UPDATE builder.sites SET fields = $1, updated_at = $2 WHERE id = $3", req.Fields, time.Now(), siteID)
 		if err != nil {
 			return 0, err
 		}

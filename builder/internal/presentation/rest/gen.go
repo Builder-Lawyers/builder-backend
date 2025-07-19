@@ -8,67 +8,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/oapi-codegen/runtime"
-	openapi_types "github.com/oapi-codegen/runtime/types"
 )
-
-// Defines values for UpdateSiteRequestNewStatus.
-const (
-	AwaitingProvision UpdateSiteRequestNewStatus = "AwaitingProvision"
-	Created           UpdateSiteRequestNewStatus = "Created"
-	InCreation        UpdateSiteRequestNewStatus = "InCreation"
-)
-
-// CreateSiteRequest defines model for CreateSiteRequest.
-type CreateSiteRequest struct {
-	// Fields json object with all widgets and fields of a site
-	Fields     *map[string]interface{} `json:"fields,omitempty"`
-	TemplateID uint8                   `json:"templateID"`
-	UserID     openapi_types.UUID      `json:"userID"`
-}
-
-// CreateSiteResponse defines model for CreateSiteResponse.
-type CreateSiteResponse struct {
-	SiteID uint64 `json:"siteID"`
-}
-
-// EnrichContentRequest defines model for EnrichContentRequest.
-type EnrichContentRequest struct {
-	Content string `json:"content"`
-}
-
-// EnrichContentResponse defines model for EnrichContentResponse.
-type EnrichContentResponse struct {
-	Enriched string `json:"enriched"`
-}
-
-// ErrorResponse defines model for ErrorResponse.
-type ErrorResponse struct {
-	Error string `json:"error"`
-}
-
-// UpdateSiteRequest defines model for UpdateSiteRequest.
-type UpdateSiteRequest struct {
-	Fields     *[]string                   `json:"fields,omitempty"`
-	NewStatus  *UpdateSiteRequestNewStatus `json:"newStatus,omitempty"`
-	TemplateID uint8                       `json:"templateID"`
-}
-
-// UpdateSiteRequestNewStatus defines model for UpdateSiteRequest.NewStatus.
-type UpdateSiteRequestNewStatus string
-
-// UpdateSiteResponse defines model for UpdateSiteResponse.
-type UpdateSiteResponse struct {
-	SiteID uint64 `json:"siteID"`
-}
-
-// EnrichContentJSONRequestBody defines body for EnrichContent for application/json ContentType.
-type EnrichContentJSONRequestBody = EnrichContentRequest
-
-// CreateSiteJSONRequestBody defines body for CreateSite for application/json ContentType.
-type CreateSiteJSONRequestBody = CreateSiteRequest
-
-// UpdateSiteJSONRequestBody defines body for UpdateSite for application/json ContentType.
-type UpdateSiteJSONRequestBody = UpdateSiteRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
