@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/command"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"log"
@@ -9,16 +10,17 @@ import (
 )
 
 type OutboxPoller struct {
-	dbs.UOWFactory
-	limit    uint8
-	interval uint16
+	commands   command.Collection
+	uowFactory dbs.UOWFactory
+	limit      uint8
+	interval   uint16
 }
 
-func NewOutboxPoller(UOWFactory dbs.UOWFactory, limit uint8, interval uint16) *OutboxPoller {
-	return &OutboxPoller{UOWFactory: UOWFactory, limit: limit, interval: interval}
+func NewOutboxPoller(commands command.Collection, uowFactory dbs.UOWFactory, limit uint8, interval uint16) *OutboxPoller {
+	return &OutboxPoller{commands: commands, uowFactory: uowFactory, limit: limit, interval: interval}
 }
 
-func (o OutboxPoller) Start() {
+func (o *OutboxPoller) Start() {
 	ticker := time.NewTicker(time.Duration(o.interval) * time.Second)
 	defer ticker.Stop()
 
@@ -31,8 +33,8 @@ func (o OutboxPoller) Start() {
 	}
 }
 
-func (o OutboxPoller) pollTable() {
-	uow := o.GetUoW()
+func (o *OutboxPoller) pollTable() {
+	uow := o.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
 		log.Println("error in poller ", err)
@@ -61,4 +63,11 @@ func (o OutboxPoller) pollTable() {
 		}
 	}
 	log.Println("Finished poller thread elaboration")
+}
+
+func (o *OutboxPoller) handleEvent(event db.Outbox) error {
+	switch event.Event {
+	case "SiteAwaitingProvision":
+
+	}
 }
