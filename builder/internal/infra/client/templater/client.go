@@ -3,6 +3,7 @@ package templater
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -19,12 +20,12 @@ func NewTemplaterClient(config TemplaterConfig) *TemplaterClient {
 	}
 }
 
-func (c *TemplaterClient) ProvisionSite(req ProvisionSiteReq) (int, error) {
+func (c *TemplaterClient) ProvisionSite(req ProvisionSiteRequest) (int, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return 0, err
 	}
-	request, err := http.NewRequest("POST", c.getURL(), bytes.NewBuffer(body))
+	request, err := http.NewRequest("POST", c.getURL()+"/provision", bytes.NewBuffer(body))
 	if err != nil {
 		return 0, err
 	}
@@ -44,5 +45,5 @@ func (c *TemplaterClient) ProvisionSite(req ProvisionSiteReq) (int, error) {
 }
 
 func (c *TemplaterClient) getURL() string {
-	return c.cfg.schema + c.cfg.host + ":" + c.cfg.port + c.cfg.version + c.cfg.uri
+	return fmt.Sprintf("%v://%v:%v", c.cfg.schema, c.cfg.host, c.cfg.port)
 }

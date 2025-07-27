@@ -27,7 +27,10 @@ CREATE TABLE IF NOT EXISTS builder.templates (
 CREATE TABLE IF NOT EXISTS builder.outbox (
     id BIGINT GENERATED ALWAYS AS IDENTITY,
     event VARCHAR(200) NOT NULL,
-    status VARCHAR(60) NOT NULL,
+    status SMALLINT NOT NULL,
     payload JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL
 );
+
+insert into builder.users (id, first_name, second_name, email, created_at) values ('5a9bf3fa-d99a-4ccc-b64f-b2ddf20ee5e5', 'John', 'Doe', 'example@gmail.com', CURRENT_TIMESTAMP);
+insert into builder.templates(id, name) VALUES (1, 'test-template');

@@ -1,5 +1,6 @@
 package: rest
 generate:
   fiber-server: true
-  models: true
 output: internal/presentation/rest/gen.go
+import-mapping:
+  "#/components/schemas": github.com/Builder-Lawyers/builder-backend/templater/internal/application/dto

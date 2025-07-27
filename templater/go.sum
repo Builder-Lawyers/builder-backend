@@ -6,10 +6,16 @@ github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 h1:L/gRVlceqvL25
 github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250718142413-4b5cdd8a3540 h1:awIKhYDzPKms9cGVJFbYPRTRlC5oa8xjVkh8sp0HXaM=
 github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250718142413-4b5cdd8a3540/go.mod h1:7JvtfIr6qiBD4UQ5yOoeX8UuV1RwTEbIs4slDMqeYY8=
+github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250720073208-a0b8e3222a2a h1:YsY6ozOViswdCwA8pQ/59GRTxuqq5d64cGM/gl8/L9M=
+github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250720073208-a0b8e3222a2a/go.mod h1:6lM3UD+sRo4O++eWnZEoW5BX8bVsBFLuiKsldwsnIf0=
 github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250718130208-cbe7c367d13d h1:x9GSd7n5fdU4nxOpLLtcZ+bDMH5od1mvgXEzWneHKgQ=
 github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250718130208-cbe7c367d13d/go.mod h1:c0cOv/37KH99xg2k9QUcq7M51LtAEId/o4sfx3Gfikw=
+github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250720073208-a0b8e3222a2a h1:z0+fygg1E+CBYebY5SGXlBM1Nueq96K7kpVJQaKalhw=
+github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250720073208-a0b8e3222a2a/go.mod h1:c0cOv/37KH99xg2k9QUcq7M51LtAEId/o4sfx3Gfikw=
 github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250718142413-4b5cdd8a3540 h1:wawLN3HdaidzUK98Es7P0i/xysFTkzzmThcl6rDMB2c=
 github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250718142413-4b5cdd8a3540/go.mod h1:Y7NU3tM0O5rvWIbous0gQgQuzZtS+8ouZKwWXTFQoi8=
+github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250720073208-a0b8e3222a2a h1:SY0KsqWH4p3Yz2g6Y+SqN6sxQrkTyGCAwWPNBfsNCbg=
+github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250720073208-a0b8e3222a2a/go.mod h1:Y7NU3tM0O5rvWIbous0gQgQuzZtS+8ouZKwWXTFQoi8=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/andybalholm/brotli v1.2.0 h1:ukwgCxwYrmACq68yiUqwIWnGY0cTPox/M94sVwToPjQ=

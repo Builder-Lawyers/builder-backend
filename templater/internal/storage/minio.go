@@ -1,14 +1,15 @@
 package storage
 
 import (
-	"builder-templater/pkg/env"
-	"bytes"
 	"context"
 	"fmt"
+	"github.com/Builder-Lawyers/builder-backend/pkg/env"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"io"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 )
@@ -21,14 +22,14 @@ type Storage struct {
 func NewStorage() *Storage {
 	return &Storage{
 		initClient(),
-		env.GetEnv("S3_BUCKET", "test-web"),
+		env.GetEnv("S3_BUCKET", "sanity-web"),
 	}
 }
 
 func initClient() *s3.Client {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		fmt.Println(err)
+		slog.Info("", err)
 	}
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.UsePathStyle = true
@@ -36,12 +37,12 @@ func initClient() *s3.Client {
 	return client
 }
 
-func (s Storage) UploadFile(key, contentType string, body []byte) error {
+func (s Storage) UploadFile(key string, contentType *string, body io.Reader) error {
 	_, err := s.client.PutObject(context.Background(), &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucket),
 		Key:         aws.String(key),
-		Body:        bytes.NewReader(body),
-		ContentType: aws.String(contentType),
+		Body:        body,
+		ContentType: contentType,
 	})
 	if err != nil {
 		return err
@@ -75,50 +76,46 @@ func (s Storage) ListFiles() []string {
 
 		// Log the objects found
 		for _, obj := range page.Contents {
-			fmt.Println("Object:", *obj.Key)
+			slog.Info("Object:", *obj.Key)
 			files = append(files, *obj.Key)
 		}
 	}
 	return files
 }
 
-func (s Storage) UploadFiles(dir string) {
-	var files []string
-	files = readFilesFromDir(dir, files)
-	for _, f := range files {
-		file, err := os.Open(f)
+func (s Storage) DownloadFiles(keys []string, destination string) error {
+	bucket := "sanity-web"
+	for _, key := range keys {
+		params := &s3.GetObjectInput{
+			Bucket: &bucket,
+			Key:    aws.String(key),
+		}
+		resp, err := s.client.GetObject(context.Background(), params)
 		if err != nil {
-			log.Printf("Can't open file %s: %v", f, err)
-			continue
+			return fmt.Errorf("error downloading key %s: %w", key, err)
 		}
-		params := s3.PutObjectInput{
-			Bucket: aws.String("sanity-web"),
-			Key:    aws.String(f),
-			Body:   file,
-		}
-		_, err = s.client.PutObject(context.Background(), &params)
-		if err != nil {
-			fmt.Printf("Can't put object %v", err)
-		}
-		log.Printf("Uploaded file %v", f)
-		if err := file.Close(); err != nil {
-			log.Printf("Failed to close file %s: %v", f, err)
-		}
+
+		return s.readAndCopyObjectTo(resp.Body, filepath.Join(destination, key))
 	}
+	return nil
 }
 
-func readFilesFromDir(dir string, files []string) []string {
-	directory, err := os.ReadDir(dir)
+func (s Storage) readAndCopyObjectTo(content io.ReadCloser, destination string) error {
+	slog.Info("saving file to %v", destination)
+	defer content.Close()
+	if err := os.MkdirAll(filepath.Dir(destination), os.ModePerm); err != nil {
+		return fmt.Errorf("error creating directories for %s: %w", destination, err)
+	}
+	outFile, err := os.Create(destination)
 	if err != nil {
-		log.Printf("Can't find provided directory %v", err)
+		return fmt.Errorf("error creating file %s: %w", destination, err)
 	}
-	for _, v := range directory {
-		fileName := filepath.Join(dir, v.Name())
-		if v.IsDir() {
-			readFilesFromDir(fileName, files)
-		} else {
-			files = append(files, fileName)
-		}
+	defer outFile.Close()
+
+	_, err = io.Copy(outFile, content)
+	if err != nil {
+		return fmt.Errorf("error writing to file %s: %w", destination, err)
 	}
-	return files
+
+	return nil
 }

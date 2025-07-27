@@ -48,9 +48,8 @@ components:
           format: uint64
           example: 101
         templateName:
-          type: integer
-          format: uint64
-          example: 202
+          type: string
+          example: template1
         domainVariants:
           type: array
           items:

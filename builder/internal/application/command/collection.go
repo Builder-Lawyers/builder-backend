@@ -4,6 +4,6 @@ type Collection struct {
 	CreateSite
 	UpdateSite
 	DeleteSite
-	RequestProvision
+	//RequestProvision
 	EnrichContent
 }

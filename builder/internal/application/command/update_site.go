@@ -11,16 +11,16 @@ import (
 )
 
 type UpdateSite struct {
-	dbs.UOWFactory
+	*dbs.UOWFactory
 	templater.TemplaterClient
 }
 
-func NewUpdateSite(factory dbs.UOWFactory, client templater.TemplaterClient) UpdateSite {
+func NewUpdateSite(factory *dbs.UOWFactory, client templater.TemplaterClient) UpdateSite {
 	return UpdateSite{UOWFactory: factory, TemplaterClient: client}
 }
 
-func (c UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, error) {
-	var oldSiteModel db.Site
+func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, error) {
+	var siteModel db.Site
 	var creator db.User
 
 	uow := c.UOWFactory.GetUoW()
@@ -28,33 +28,65 @@ func (c UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, e
 	if err != nil {
 		return 0, err
 	}
-	err = tx.QueryRow(context.Background(), "SELECT creator_id, template_id, status from builder.sites WHERE id = $1", siteID).Scan(&oldSiteModel)
+	err = tx.QueryRow(context.Background(), "SELECT creator_id, template_id, status, fields from builder.sites WHERE id = $1", siteID).Scan(
+		&siteModel.CreatorID,
+		&siteModel.TemplateID,
+		&siteModel.Status,
+		&siteModel.Fields,
+	)
 	if err != nil {
 		return 0, err
 	}
-	err = tx.QueryRow(context.Background(), "SELECT id, first_name, second_name, email, created_at from builder.users WHERE id = $1", oldSiteModel.CreatorID).Scan(&creator)
+	err = tx.QueryRow(context.Background(), "SELECT id, first_name, second_name, email, created_at from builder.users WHERE id = $1", siteModel.CreatorID).Scan(
+		&creator.ID,
+		&creator.FirstName,
+		&creator.SecondName,
+		&creator.Email,
+		&creator.CreatedAt,
+	)
 	if err != nil {
 		return 0, err
 	}
-	oldSite := db.MapSiteModelToEntity(oldSiteModel, creator)
+	site := db.MapSiteModelToEntity(siteModel, creator)
 
 	if req.NewStatus != nil {
 		// Created - request came from templater, site is ready
 		// AwaitingProvision - from frontend, all fields are filled in by user
-		oldSite.UpdateState(consts.Status(*req.NewStatus))
-		_, err = tx.Exec(context.Background(), "UPDATE builder.sites SET status = $1, updated_at = $2 WHERE id = $3", oldSite.Status, time.Now(), siteID)
+		site.UpdateState(consts.Status(*req.NewStatus))
+		_, err = tx.Exec(context.Background(), "UPDATE builder.sites SET status = $1, updated_at = $2 WHERE id = $3", site.Status, time.Now(), siteID)
 		if err != nil {
 			return 0, err
 		}
-		// TODO: Move this logic to domain
-		if oldSite.Status == consts.AwaitingProvision {
-			siteProvision := db.Outbox{
-				Event:     "SiteAwaitingProvision",
-				Status:    int(consts.NotProcessed),
-				CreatedAt: time.Now(),
+		//// TODO: Move this logic to domain
+		//if oldSite.Status == consts.AwaitingProvision {
+		//	siteProvision := db.Outbox{
+		//		Event:     "SiteAwaitingProvision",
+		//		Status:    int(consts.NotProcessed),
+		//		CreatedAt: time.Now(),
+		//	}
+		//	_, err = tx.Exec(context.Background(), "INSERT INTO builder.outbox(event, status, created_at) VALUES ($1, $2, $3)",
+		//		siteProvision.Event, siteProvision.Status, siteProvision.CreatedAt)
+		//	if err != nil {
+		//		return 0, err
+		//	}
+		//}
+		if site.Status == consts.AwaitingProvision {
+			var templateName string
+			err = tx.QueryRow(context.Background(), "SELECT name FROM builder.templates WHERE id = $1", site.TemplateID).Scan(&templateName)
+			if err != nil {
+				return 0, err
 			}
-			_, err = tx.Exec(context.Background(), "INSERT INTO builder.outbox(event, status, created_at) VALUES ($1, $2, $3)",
-				siteProvision.Event, siteProvision.Status, siteProvision.CreatedAt)
+			fields := db.RawMessageToMap(siteModel.Fields)
+			if req.Fields != nil {
+				fields = *req.Fields
+			}
+			templaterReq := templater.ProvisionSiteRequest{
+				SiteID:         site.ID,
+				TemplateName:   templateName,
+				DomainVariants: c.getDomainVariants(),
+				Fields:         fields,
+			}
+			_, err = c.TemplaterClient.ProvisionSite(templaterReq)
 			if err != nil {
 				return 0, err
 			}
@@ -77,4 +109,8 @@ func (c UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, e
 	}
 
 	return siteID, nil
+}
+
+func (c *UpdateSite) getDomainVariants() []string {
+	return []string{"test"}
 }

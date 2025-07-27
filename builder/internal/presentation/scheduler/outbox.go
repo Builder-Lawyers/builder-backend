@@ -65,9 +65,10 @@ func (o *OutboxPoller) pollTable() {
 	log.Println("Finished poller thread elaboration")
 }
 
-func (o *OutboxPoller) handleEvent(event db.Outbox) error {
-	switch event.Event {
+func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
+	switch outbox.Event {
 	case "SiteAwaitingProvision":
-
+		event := db.MapOutboxModelToSiteAwaitingProvisionEvent(outbox)
+		res, err := o.commands.RequestProvision.Handle(&event)
 	}
 }

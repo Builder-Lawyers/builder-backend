@@ -21,6 +21,6 @@ func NewSite(templateID uint8, creator User) *Site {
 	}
 }
 
-func (e Site) UpdateState(newStatus consts.Status) {
+func (e *Site) UpdateState(newStatus consts.Status) {
 	e.Status = newStatus
 }

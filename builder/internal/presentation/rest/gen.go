@@ -19,7 +19,7 @@ type ServerInterface interface {
 	// (POST /sites)
 	CreateSite(c *fiber.Ctx) error
 	// Update an existing site
-	// (PUT /sites/{id})
+	// (PATCH /sites/{id})
 	UpdateSite(c *fiber.Ctx, id uint64) error
 }
 
@@ -83,6 +83,6 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 
 	router.Post(options.BaseURL+"/sites", wrapper.CreateSite)
 
-	router.Put(options.BaseURL+"/sites/:id", wrapper.UpdateSite)
+	router.Patch(options.BaseURL+"/sites/:id", wrapper.UpdateSite)
 
 }

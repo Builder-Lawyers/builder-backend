@@ -7,33 +7,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// ErrorResponse defines model for ErrorResponse.
-type ErrorResponse struct {
-	Error string `json:"error"`
-}
-
-// ProvisionSiteRequest defines model for ProvisionSiteRequest.
-type ProvisionSiteRequest struct {
-	DomainVariants []string `json:"domainVariants"`
-
-	// Fields json object with all widgets and fields of a site
-	Fields       map[string]interface{} `json:"fields"`
-	SiteID       uint64                 `json:"siteID"`
-	TemplateName uint64                 `json:"templateName"`
-}
-
-// ProvisionSiteResponse defines model for ProvisionSiteResponse.
-type ProvisionSiteResponse struct {
-	SiteID uint64 `json:"siteID"`
-}
-
-// ProvisionSiteJSONRequestBody defines body for ProvisionSite for application/json ContentType.
-type ProvisionSiteJSONRequestBody = ProvisionSiteRequest
-
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Provision a new site
-	// (POST /sites/provision)
+	// (POST /provision)
 	ProvisionSite(c *fiber.Ctx) error
 }
 
@@ -71,6 +48,6 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 		router.Use(fiber.Handler(m))
 	}
 
-	router.Post(options.BaseURL+"/sites/provision", wrapper.ProvisionSite)
+	router.Post(options.BaseURL+"/provision", wrapper.ProvisionSite)
 
 }

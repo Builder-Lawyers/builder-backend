@@ -1,7 +1,8 @@
 package rest
 
 import (
-	"builder-templater/internal/application"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/application"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/application/dto"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -16,16 +17,16 @@ func NewServer(commands application.Commands) Server {
 }
 
 func (s Server) ProvisionSite(c *fiber.Ctx) error {
-	var req ProvisionSiteRequest
+	var req dto.ProvisionSiteRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{Error: err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	provisionedSiteID, err := s.commands.ProvisionSite.Execute(req)
+	provisionedSiteID, err := s.commands.RequestProvision.Execute(req)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{Error: err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
-	resp := ProvisionSiteResponse{
+	resp := dto.ProvisionSiteResponse{
 		SiteID: provisionedSiteID,
 	}
 

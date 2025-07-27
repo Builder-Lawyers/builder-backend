@@ -38,7 +38,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   /sites/{id}:
-    put:
+    patch:
       summary: Update an existing site
       operationId: updateSite
       tags:
@@ -142,10 +142,14 @@ components:
           enum: [InCreation, AwaitingProvision, Created]
           example: "Created"
         fields:
-          type: array
-          items:
-            type: string
-          example: ["title", "theme", "domain"]
+          type: object
+          additionalProperties: true
+          example:
+            title: "My Site"
+            theme: "dark"
+            customSetting:
+              nested: true
+              list: [ 1, 2, 3 ]
       required:
         - templateID
 

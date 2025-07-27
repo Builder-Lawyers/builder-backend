@@ -44,7 +44,7 @@ type ErrorResponse struct {
 
 // UpdateSiteRequest defines model for UpdateSiteRequest.
 type UpdateSiteRequest struct {
-	Fields     *[]string                   `json:"fields,omitempty"`
+	Fields     *map[string]interface{}     `json:"fields,omitempty"`
 	NewStatus  *UpdateSiteRequestNewStatus `json:"newStatus,omitempty"`
 	TemplateID uint8                       `json:"templateID"`
 }

@@ -30,8 +30,9 @@ type Template struct {
 }
 
 type Outbox struct {
-	ID        uint64    `db:"id"`
-	Event     string    `db:"event"`
-	Status    int       `db:"status"`
-	CreatedAt time.Time `db:"created_at"`
+	ID        uint64          `db:"id"`
+	Event     string          `db:"event"`
+	Status    int             `db:"status"`
+	Payload   json.RawMessage `db:"payload"`
+	CreatedAt time.Time       `db:"created_at"`
 }
