@@ -11,8 +11,8 @@ type TemplaterConfig struct {
 	version string
 }
 
-func NewTemplaterConfig() TemplaterConfig {
-	return TemplaterConfig{
+func NewTemplaterConfig() *TemplaterConfig {
+	return &TemplaterConfig{
 		schema:  env.GetEnv("TEMPLATER_SCHEMA", "http://"),
 		host:    env.GetEnv("TEMPLATER_HOST", "localhost"),
 		port:    env.GetEnv("TEMPLATER_PORT", "3001"),

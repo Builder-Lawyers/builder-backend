@@ -5,6 +5,7 @@ import (
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/application"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/db"
+	"github.com/jackc/pgx/v5"
 	"log/slog"
 	"time"
 )
@@ -28,7 +29,7 @@ func (o *OutboxPoller) Start() {
 	for {
 		select {
 		case <-ticker.C:
-			o.pollTable()
+			go o.pollTable()
 		}
 	}
 }
@@ -38,13 +39,16 @@ func (o *OutboxPoller) pollTable() {
 	tx, err := uow.Begin()
 	if err != nil {
 		slog.Error("error in poller", "err", err)
+		return
 	}
 	query := "SELECT * FROM builder.outbox WHERE status = 0 ORDER BY created_at FOR NO KEY UPDATE LIMIT $1"
 	events, err := tx.Query(context.Background(), query, o.limit)
 	if err != nil {
 		slog.Error("error in poller", "err", err)
-
+		return
 	}
+	defer events.Close()
+	defer tx.Conn().Close(context.Background())
 	for events.Next() {
 		var event db.Outbox
 		if err = events.Scan(&event.ID, &event.Event, &event.Status, &event.Payload, &event.CreatedAt); err != nil {
@@ -55,13 +59,6 @@ func (o *OutboxPoller) pollTable() {
 			slog.Error("error in poller", "err", err)
 			continue
 		}
-		_, err = tx.Exec(context.Background(), "UPDATE builder.outbox SET status = 1 WHERE id = $1", event.ID)
-		if err != nil {
-			slog.Error("error in poller", "err", err)
-		}
-		if err = tx.Commit(context.Background()); err != nil {
-			slog.Error("error in poller", "err", err)
-		}
 	}
 	if err = tx.Commit(context.Background()); err != nil {
 		slog.Error("error in poller", "err", err)
@@ -70,13 +67,36 @@ func (o *OutboxPoller) pollTable() {
 }
 
 func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
+	var (
+		tx      pgx.Tx
+		err     error
+		success = 1
+	)
+
 	switch outbox.Event {
 	case "SiteAwaitingProvision":
 		event := db.MapOutboxModelToSiteAwaitingProvisionEvent(outbox)
-		err := o.commands.ProvisionSite.Handle(event)
+		tx, err = o.commands.ProvisionSite.Handle(event)
+		if err != nil {
+			success = 2
+		}
+	}
+
+	if tx == nil {
+		// open new transaction if there was no in event handler
+		tx, err = o.uowFactory.GetUoW().Begin()
 		if err != nil {
 			return err
 		}
+	}
+
+	_, err = tx.Exec(context.Background(), "UPDATE builder.outbox SET status = $1 WHERE id = $2", success, outbox.ID)
+	if err != nil {
+		slog.Error("error in poller", "err", err)
+	}
+
+	if err = tx.Commit(context.Background()); err != nil {
+		slog.Error("error in poller", "err", err)
 	}
 
 	return nil

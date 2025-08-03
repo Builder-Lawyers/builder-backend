@@ -65,7 +65,7 @@ func TestListFilesEmpty(t *testing.T) {
 	if err != nil {
 		log.Fatalf("Failed to create bucket %v", err)
 	}
-	files := s3Client.ListFiles()
+	files := s3Client.ListFiles(1, "")
 	assert.Empty(t, files, "files found should be empty")
 
 }

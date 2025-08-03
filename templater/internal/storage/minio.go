@@ -1,17 +1,19 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/Builder-Lawyers/builder-backend/pkg/env"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"io"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Storage struct {
@@ -19,30 +21,45 @@ type Storage struct {
 	bucket string
 }
 
-func NewStorage() *Storage {
+func NewStorage(config aws.Config) *Storage {
 	return &Storage{
-		initClient(),
+		initClient(config),
 		env.GetEnv("S3_BUCKET", "sanity-web"),
 	}
 }
 
-func initClient() *s3.Client {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		slog.Info("", err)
-	}
-	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+func initClient(config aws.Config) *s3.Client {
+	client := s3.NewFromConfig(config, func(o *s3.Options) {
 		o.UsePathStyle = true
 	})
 	return client
 }
 
-func (s Storage) UploadFile(key string, contentType *string, body io.Reader) error {
-	_, err := s.client.PutObject(context.Background(), &s3.PutObjectInput{
-		Bucket:      aws.String(s.bucket),
-		Key:         aws.String(key),
-		Body:        body,
-		ContentType: contentType,
+func (s *Storage) UploadFile(key string, contentType *string, body io.Reader) error {
+	var ct string
+
+	data, err := io.ReadAll(body)
+	if err != nil && err != io.EOF {
+		return fmt.Errorf("reading for content-type detection: %w", err)
+	}
+
+	if contentType == nil {
+		ct = http.DetectContentType(data)
+		if strings.HasSuffix(key, ".svg") {
+			ct = "image/svg+xml"
+		}
+		if strings.HasSuffix(key, ".css") {
+			ct = "text/css"
+		}
+	} else {
+		ct = *contentType
+	}
+	_, err = s.client.PutObject(context.Background(), &s3.PutObjectInput{
+		Bucket:        aws.String(s.bucket),
+		Key:           aws.String(key),
+		Body:          bytes.NewReader(data),
+		ContentType:   aws.String(ct),
+		ContentLength: aws.Int64(int64(len(data))),
 	})
 	if err != nil {
 		return err
@@ -50,40 +67,31 @@ func (s Storage) UploadFile(key string, contentType *string, body io.Reader) err
 	return nil
 }
 
-func (s Storage) ListFiles() []string {
-	bucket := "sanity-web"
+func (s *Storage) ListFiles(limit int32, prefix string) []string {
 	params := &s3.ListObjectsV2Input{
-		Bucket: &bucket,
+		Bucket: &s.bucket,
+		Prefix: &prefix,
 	}
 	p := s3.NewListObjectsV2Paginator(s.client, params, func(o *s3.ListObjectsV2PaginatorOptions) {
-		if v := int32(3); v != 0 {
-			o.Limit = v
-		}
+		o.Limit = limit
 	})
 
 	var i int
-	log.Println("Objects:")
 	var files []string
 	for p.HasMorePages() {
 		i++
-
-		// Next Page takes a new context for each page retrieval. This is where
-		// you could add timeouts or deadlines.
 		page, err := p.NextPage(context.TODO())
 		if err != nil {
 			log.Fatalf("failed to get page %v, %v", i, err)
 		}
-
-		// Log the objects found
 		for _, obj := range page.Contents {
-			slog.Info("Object:", *obj.Key)
 			files = append(files, *obj.Key)
 		}
 	}
 	return files
 }
 
-func (s Storage) DownloadFiles(keys []string, destination string) error {
+func (s *Storage) DownloadFiles(keys []string, destination string) error {
 	bucket := "sanity-web"
 	for _, key := range keys {
 		params := &s3.GetObjectInput{
@@ -100,7 +108,7 @@ func (s Storage) DownloadFiles(keys []string, destination string) error {
 	return nil
 }
 
-func (s Storage) readAndCopyObjectTo(content io.ReadCloser, destination string) error {
+func (s *Storage) readAndCopyObjectTo(content io.ReadCloser, destination string) error {
 	slog.Info("saving file to %v", destination)
 	defer content.Close()
 	if err := os.MkdirAll(filepath.Dir(destination), os.ModePerm); err != nil {

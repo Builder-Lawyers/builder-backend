@@ -1,4 +1,4 @@
-package templater
+package builder
 
 import (
 	"bytes"
@@ -8,24 +8,24 @@ import (
 	"time"
 )
 
-type TemplaterClient struct {
-	cfg    *TemplaterConfig
+type BuilderClient struct {
+	cfg    *BuilderConfig
 	client http.Client
 }
 
-func NewTemplaterClient(config *TemplaterConfig) *TemplaterClient {
-	return &TemplaterClient{
+func NewBuilderClient(config *BuilderConfig) *BuilderClient {
+	return &BuilderClient{
 		config,
 		http.Client{Timeout: 4 * time.Second},
 	}
 }
 
-func (c *TemplaterClient) ProvisionSite(req ProvisionSiteRequest) (int, error) {
+func (c *BuilderClient) UpdateSite(siteID uint64, req UpdateSiteRequest) (int, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return 0, err
 	}
-	request, err := http.NewRequest("POST", c.getURL()+"/provision", bytes.NewBuffer(body))
+	request, err := http.NewRequest("PATCH", fmt.Sprintf("%v/sites/%d", c.getURL(), siteID), bytes.NewBuffer(body))
 	if err != nil {
 		return 0, err
 	}
@@ -44,6 +44,6 @@ func (c *TemplaterClient) ProvisionSite(req ProvisionSiteRequest) (int, error) {
 	return result, nil
 }
 
-func (c *TemplaterClient) getURL() string {
+func (c *BuilderClient) getURL() string {
 	return fmt.Sprintf("%v://%v:%v", c.cfg.schema, c.cfg.host, c.cfg.port)
 }
