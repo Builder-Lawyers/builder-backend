@@ -137,6 +137,12 @@ components:
           type: integer
           format: uint8
           example: 2
+        domainType:
+          type: string
+          enum: [DefaultDomain, SeparateDomain, BringYourDomain]
+        domain:
+          type: string
+          example: "example.com"
         newStatus:
           type: string
           enum: [InCreation, AwaitingProvision, Created]

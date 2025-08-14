@@ -5,6 +5,30 @@ info:
   description: API for provisioning user sites
 
 paths:
+  /domain/check:
+    post:
+      summary: Checks domain availability
+      description: Returns whether a domain is available or not
+      operationId: checkDomain
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckDomainParams'
+      responses:
+        '200':
+          description: Domain availability info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainAvailability'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /provision:
     post:
       summary: Provision a new site
@@ -47,22 +71,24 @@ components:
           type: integer
           format: uint64
           example: 101
+        provisionType:
+          type: string
+          enum: [DefaultDomain, SeparateDomain, BringYourDomain]
         templateName:
           type: string
           example: template1
-        domainVariants:
-          type: array
-          items:
-            type: string
-          example: ["example.com", "www.example.com"]
+        domain:
+          type: string
+          example: "example.com"
         fields:
           type: object
           description: json object with all widgets and fields of a site
           additionalProperties: true
       required:
         - siteID
+        - provisionType
         - templateName
-        - domainVariants
+        - domain
         - fields
 
     ProvisionSiteResponse:
@@ -74,6 +100,23 @@ components:
           example: 101
       required:
         - siteID
+
+    CheckDomainParams:
+      type: object
+      properties:
+        domain:
+          type: string
+      required:
+        - domain
+
+    DomainAvailability:
+      type: object
+      properties:
+        available:
+          type: boolean
+          example: true
+      required:
+        - available
 
     ErrorResponse:
       type: object

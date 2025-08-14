@@ -1,14 +1,15 @@
-package application
+package commands
 
 import (
 	"context"
 	"encoding/json"
+	"log"
+	"time"
+
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/application/dto"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/consts"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/db"
-	"log"
-	"time"
 )
 
 type RequestProvision struct {
@@ -22,13 +23,6 @@ func NewRequestProvision(factory *dbs.UOWFactory) *RequestProvision {
 }
 
 func (c *RequestProvision) Execute(req dto.ProvisionSiteRequest) (uint64, error) {
-	//event := events.SiteAwaitingProvision{
-	//	SiteID:         req.SiteID,
-	//	TemplateName:   req.TemplateName,
-	//	DomainVariants: req.DomainVariants,
-	//	Fields:         db.MapToRawMessage(req.Fields),
-	//	CreatedAt:      time.Now(),
-	//}
 	payload, err := json.Marshal(req)
 	if err != nil {
 		log.Println(err)

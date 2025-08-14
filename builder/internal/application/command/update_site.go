@@ -81,17 +81,18 @@ func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, 
 				fields = *req.Fields
 			}
 			templaterReq := templater.ProvisionSiteRequest{
-				SiteID:         site.ID,
-				TemplateName:   templateName,
-				DomainVariants: c.getDomainVariants(),
-				Fields:         fields,
+				SiteID:        site.ID,
+				ProvisionType: templater.ProvisionSiteRequestProvisionType(*req.DomainType),
+				TemplateName:  templateName,
+				CustomDomain:  *req.Domain,
+				Fields:        fields,
 			}
 			_, err = c.TemplaterClient.ProvisionSite(templaterReq)
 			if err != nil {
 				return 0, err
 			}
 		}
-		if err := uow.Commit(); err != nil {
+		if err = uow.Commit(); err != nil {
 			return 0, err
 		}
 		return siteID, nil
@@ -102,15 +103,11 @@ func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, 
 		if err != nil {
 			return 0, err
 		}
-		if err := uow.Commit(); err != nil {
+		if err = uow.Commit(); err != nil {
 			return 0, err
 		}
 		return siteID, nil
 	}
 
 	return siteID, nil
-}
-
-func (c *UpdateSite) getDomainVariants() []string {
-	return []string{"test"}
 }

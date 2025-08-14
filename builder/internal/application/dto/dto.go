@@ -7,6 +7,13 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for UpdateSiteRequestDomainType.
+const (
+	BringYourDomain UpdateSiteRequestDomainType = "BringYourDomain"
+	DefaultDomain   UpdateSiteRequestDomainType = "DefaultDomain"
+	SeparateDomain  UpdateSiteRequestDomainType = "SeparateDomain"
+)
+
 // Defines values for UpdateSiteRequestNewStatus.
 const (
 	AwaitingProvision UpdateSiteRequestNewStatus = "AwaitingProvision"
@@ -44,10 +51,15 @@ type ErrorResponse struct {
 
 // UpdateSiteRequest defines model for UpdateSiteRequest.
 type UpdateSiteRequest struct {
-	Fields     *map[string]interface{}     `json:"fields,omitempty"`
-	NewStatus  *UpdateSiteRequestNewStatus `json:"newStatus,omitempty"`
-	TemplateID uint8                       `json:"templateID"`
+	Domain     *string                      `json:"domain,omitempty"`
+	DomainType *UpdateSiteRequestDomainType `json:"domainType,omitempty"`
+	Fields     *map[string]interface{}      `json:"fields,omitempty"`
+	NewStatus  *UpdateSiteRequestNewStatus  `json:"newStatus,omitempty"`
+	TemplateID uint8                        `json:"templateID"`
 }
+
+// UpdateSiteRequestDomainType defines model for UpdateSiteRequest.DomainType.
+type UpdateSiteRequestDomainType string
 
 // UpdateSiteRequestNewStatus defines model for UpdateSiteRequest.NewStatus.
 type UpdateSiteRequestNewStatus string

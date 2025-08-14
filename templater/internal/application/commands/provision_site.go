@@ -1,0 +1,260 @@
+package commands
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
+	shared "github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/application/interfaces"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/build"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/certs"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/config"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/consts"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/db"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/dns"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/events"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/storage"
+	"github.com/jackc/pgx/v5"
+)
+
+type ProvisionSite struct {
+	cfg *config.ProvisionConfig
+	*dbs.UOWFactory
+	interfaces.EventRepo
+	interfaces.ProvisionRepo
+	*storage.Storage
+	*build.TemplateBuild
+	*dns.DNSProvisioner
+	*certs.ACMCertificates
+}
+
+func NewProvisionSite(
+	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, eventRepo interfaces.EventRepo, provisionRepo interfaces.ProvisionRepo,
+	storage *storage.Storage, build *build.TemplateBuild, dns *dns.DNSProvisioner, certs *certs.ACMCertificates,
+) *ProvisionSite {
+	return &ProvisionSite{
+		cfg,
+		factory,
+		eventRepo,
+		provisionRepo,
+		storage,
+		build,
+		dns,
+		certs,
+	}
+}
+
+// download all source code of template, save it to fs
+// place page.json to a certain dir
+// check if node_modules are installed, install if not
+// build to dist folder
+// upload dist folder to s3
+func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (pgx.Tx, error) {
+	siteID := strconv.FormatUint(event.SiteID, 10)
+	err := c.downloadTemplate(event.TemplateName)
+	if err != nil {
+		return nil, err
+	}
+	// idempotent execution - check if provisioned site static content already exists
+	existingFiles := c.Storage.ListFiles(1, event.Domain)
+	if len(existingFiles) > 0 {
+		return nil, nil
+	}
+	templatePath := c.cfg.BuildFolder + string(os.PathSeparator) + event.TemplateName
+	customizeJsonPath := filepath.Join(templatePath+c.cfg.PathToFile, c.cfg.Filename)
+	err = saveFieldsToFile(event.Fields, customizeJsonPath)
+	if err != nil {
+		slog.Error("error saving fields json to template %v", err)
+		return nil, err
+	}
+
+	slog.Info("Building")
+	buildPath, err := c.TemplateBuild.RunFrontendBuild(templatePath)
+	if err != nil {
+		return nil, err
+	}
+	cleanBuild(customizeJsonPath)
+
+	if err = c.uploadFiles(siteID, event.TemplateName, buildPath); err != nil {
+		return nil, err
+	}
+
+	var domain string
+	var newEvent shared.Event
+	var newProvision db.Provision
+
+	switch event.DomainType {
+	case consts.DefaultDomain:
+
+		domain = fmt.Sprintf("%v.%v", event.Domain, c.cfg.BaseDomain)
+		timeout := 3 * time.Second
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		distributionID, err := c.DNSProvisioner.MapCfDistributionToS3(ctx, "/"+siteID, c.cfg.Defaults.S3Domain, domain, c.cfg.Defaults.CertARN)
+		if err != nil {
+			return nil, err
+		}
+		newEvent = events.FinalizeProvision{
+			SiteID:         event.SiteID,
+			DistributionID: distributionID,
+			Domain:         domain,
+			CreatedAt:      time.Now(),
+		}
+		newProvision = db.Provision{
+			SiteID:         event.SiteID,
+			Type:           event.DomainType,
+			Domain:         domain,
+			CertificateARN: c.cfg.Defaults.CertARN,
+			CloudfrontID:   distributionID,
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
+		}
+		break
+
+	case consts.SeparateDomain:
+
+		domain = event.Domain
+		timeout := 3 * time.Second
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		operationID, err := c.DNSProvisioner.RequestDomain(ctx, domain)
+		if err != nil {
+			return nil, err
+		}
+		// for now is a FQDN, maybe do with asterisk like a *.baseDomain?
+		certificateARN, err := c.ACMCertificates.CreateCertificate(domain)
+		if err != nil {
+			return nil, err
+		}
+
+		newEvent = events.ProvisionCDN{
+			SiteID:         event.SiteID,
+			OperationID:    operationID,
+			CertificateARN: certificateARN,
+			Domain:         domain,
+			CreatedAt:      time.Now(),
+		}
+
+		newProvision = db.Provision{
+			SiteID:         event.SiteID,
+			Type:           event.DomainType,
+			Domain:         domain,
+			CertificateARN: certificateARN,
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
+		}
+
+		break
+	default:
+		return nil, fmt.Errorf("unknown domain type")
+	}
+
+	uow := c.UOWFactory.GetUoW()
+	tx, err := uow.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.EventRepo.InsertEvent(tx, newEvent)
+	if err != nil {
+		return tx, err
+	}
+	err = c.ProvisionRepo.InsertProvision(tx, newProvision)
+	if err != nil {
+		return tx, err
+	}
+
+	return tx, nil
+}
+
+func (c *ProvisionSite) uploadFiles(siteID, templateName, dir string) error {
+	files := readFilesFromDir(dir)
+	for _, f := range files {
+		file, err := os.Open(f)
+		// gets a substring after dist/
+		normalized := filepath.ToSlash(f)
+		parts := strings.SplitN(normalized, templateName+"/dist", 2)
+		//parts := strings.SplitN(normalized, "template/"+templateName, 2)
+		if err != nil {
+			return fmt.Errorf("malformed filepath, %s: %v", f, err)
+		}
+		err = c.Storage.UploadFile(siteID+parts[1], nil, file)
+		if err != nil {
+			return fmt.Errorf("can't put object %v", err)
+		}
+		if err := file.Close(); err != nil {
+			return fmt.Errorf("failed to close file %s: %v", f, err)
+		}
+		slog.Info("Uploaded file", "fileUpload", f)
+	}
+	return nil
+}
+
+func (c *ProvisionSite) downloadTemplate(templateName string) error {
+	dir, err := os.ReadDir(c.cfg.BuildFolder)
+	if err != nil {
+		return err
+	}
+	if len(dir) == 0 {
+		slog.Info("template's directory is empty, downloading sources")
+		files := c.Storage.ListFiles(1, templateName)
+		err = c.Storage.DownloadFiles(files, c.cfg.BuildFolder)
+		if err != nil {
+			slog.Error("error downloading template's sources %v", err)
+		}
+	}
+	return nil
+}
+
+func saveFieldsToFile(fields json.RawMessage, fullPath string) error {
+	jsonBytes, err := json.MarshalIndent(fields, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal fields: %w", err)
+	}
+	file, err := os.Create(fullPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", fullPath, err)
+	}
+	defer file.Close()
+
+	if _, err := file.Write(jsonBytes); err != nil {
+		return fmt.Errorf("failed to write JSON to file %s: %w", fullPath, err)
+	}
+
+	return nil
+}
+
+func cleanBuild(filename string) {
+	err := os.Remove(filename)
+	if err != nil {
+		slog.Error("error cleaning up", "cleanup", err)
+		return
+	}
+	slog.Info("Success build cleanup", "cleanup", "")
+}
+
+func readFilesFromDir(dir string) []string {
+	var files []string
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		slog.Error("Can't find provided directory %v", err)
+	}
+	for _, entry := range entries {
+		fullPath := filepath.Join(dir, entry.Name())
+		if entry.IsDir() {
+			subFiles := readFilesFromDir(fullPath)
+			files = append(files, subFiles...)
+		} else {
+			files = append(files, fullPath)
+		}
+	}
+	return files
+}

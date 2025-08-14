@@ -32,3 +32,20 @@ func (s Server) ProvisionSite(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(resp)
 }
+
+func (s Server) CheckDomain(c *fiber.Ctx) error {
+	var req dto.CheckDomainParams
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	available, err := s.commands.CheckDomain.Query(req.Domain)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+	resp := dto.DomainAvailability{
+		Available: available,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(resp)
+}

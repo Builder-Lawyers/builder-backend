@@ -9,6 +9,9 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Checks domain availability
+	// (POST /domain/check)
+	CheckDomain(c *fiber.Ctx) error
 	// Provision a new site
 	// (POST /provision)
 	ProvisionSite(c *fiber.Ctx) error
@@ -20,6 +23,12 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc fiber.Handler
+
+// CheckDomain operation middleware
+func (siw *ServerInterfaceWrapper) CheckDomain(c *fiber.Ctx) error {
+
+	return siw.Handler.CheckDomain(c)
+}
 
 // ProvisionSite operation middleware
 func (siw *ServerInterfaceWrapper) ProvisionSite(c *fiber.Ctx) error {
@@ -47,6 +56,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	for _, m := range options.Middlewares {
 		router.Use(fiber.Handler(m))
 	}
+
+	router.Post(options.BaseURL+"/domain/check", wrapper.CheckDomain)
 
 	router.Post(options.BaseURL+"/provision", wrapper.ProvisionSite)
 

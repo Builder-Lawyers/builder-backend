@@ -32,5 +32,16 @@ CREATE TABLE IF NOT EXISTS builder.outbox (
     created_at TIMESTAMPTZ NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS builder.provisions (
+    site_id BIGINT PRIMARY KEY,
+    type VARCHAR(40) NOT NULL,
+    status VARCHAR(40) NOT NULL,
+    domain VARCHAR(80),
+    cert_arn VARCHAR(60),
+    cloudfront_id VARCHAR(60),
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
+);
+
 insert into builder.users (id, first_name, second_name, email, created_at) values ('5a9bf3fa-d99a-4ccc-b64f-b2ddf20ee5e5', 'John', 'Doe', 'example@gmail.com', CURRENT_TIMESTAMP);
 insert into builder.templates(id, name) VALUES (1, 'test-template');

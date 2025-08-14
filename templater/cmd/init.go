@@ -3,42 +3,41 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/Builder-Lawyers/builder-backend/pkg/db"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/application"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/application/commands"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/application/query"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/build"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/certs"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/client/builder"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/config"
+	"github.com/Builder-Lawyers/builder-backend/templater/internal/db/repo"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/dns"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/presentation/rest"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/presentation/scheduler"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/storage"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/gofiber/fiber/v2"
-	"log"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"syscall"
-	"time"
 )
 
 func Init() {
+	provisionConfig := config.NewProvisionConfig()
+	domainContact := dns.NewDomainContact()
+
 	// DB
-	dbConfig := db.NewConfig()
-	uowFactory := db.NewUoWFactory(db.New(dbConfig))
+	dbConfig := dbs.NewConfig()
+	uowFactory := dbs.NewUoWFactory(dbs.New(dbConfig))
+	eventRepo := repo.NewEventRepo()
+	provisionRepo := repo.NewProvisionRepo()
 
 	// FE Build
-	wd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("Current working directory:", wd)
-	parent := filepath.Dir(filepath.Dir(wd))
-	target := filepath.Join(parent, "production", "template")
-	//target := filepath.Join(parent, "templates")
-	fmt.Println(target)
-	templateBuild := build.NewTemplateBuild(target)
+	templateBuild := build.NewTemplateBuild()
 
 	// AWS
 	cfg, err := awsConfig.LoadDefaultConfig(context.TODO())
@@ -46,20 +45,17 @@ func Init() {
 		log.Panic("can't load aws config", err)
 	}
 	s3 := storage.NewStorage(cfg)
-	dnsProvisioner := dns.NewDNSProvisioner(cfg)
+	dnsProvisioner := dns.NewDNSProvisioner(cfg, domainContact)
 	acmCerts := certs.NewACMCertificates(cfg)
-
-	provisionConfig := &config.ProvisionConfig{
-		BuildFolder: target,
-		PathToFile:  "/src/pages/",
-		Filename:    "_page.json",
-	}
 
 	builderClient := builder.NewBuilderClient(builder.NewBuilderConfig())
 
 	commands := application.Commands{
-		ProvisionSite:    *application.NewProvisionSite(provisionConfig, uowFactory, s3, templateBuild, dnsProvisioner, acmCerts, builderClient),
-		RequestProvision: *application.NewRequestProvision(uowFactory),
+		ProvisionSite:     commands.NewProvisionSite(provisionConfig, uowFactory, eventRepo, provisionRepo, s3, templateBuild, dnsProvisioner, acmCerts),
+		ProvisionCDN:      commands.NewProvisionCDN(provisionConfig, uowFactory, provisionRepo, dnsProvisioner),
+		FinalizeProvision: commands.NewFinalizeProvision(provisionConfig, uowFactory, dnsProvisioner, builderClient),
+		RequestProvision:  commands.NewRequestProvision(uowFactory),
+		CheckDomain:       query.NewCheckDomain(dnsProvisioner),
 	}
 	handler := rest.NewServer(commands)
 	app := fiber.New(fiber.Config{
