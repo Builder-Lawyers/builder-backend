@@ -6,6 +6,7 @@ type UoW interface {
 	Commit() error
 	Rollback() error
 	Begin() (pgx.Tx, error)
+	GetTx() pgx.Tx
 }
 
 type Event interface {

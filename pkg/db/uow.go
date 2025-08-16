@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
 	"github.com/jackc/pgx/v5"
@@ -22,6 +23,7 @@ func (u *UOW) Begin() (pgx.Tx, error) {
 	if err != nil {
 		return nil, fmt.Errorf("can't acquire conn, %w", err)
 	}
+	slog.Info("acquired conn", "pid", conn.Conn().PgConn().PID())
 
 	tx, err := conn.BeginTx(context.Background(), pgx.TxOptions{})
 	if err != nil {
@@ -47,6 +49,10 @@ func (u *UOW) Rollback() error {
 	}
 	defer u.Conn.Release()
 	return u.Tx.Rollback(context.Background())
+}
+
+func (u *UOW) GetTx() pgx.Tx {
+	return u.Tx
 }
 
 type UOWFactory struct {
