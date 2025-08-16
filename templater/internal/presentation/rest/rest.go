@@ -9,14 +9,14 @@ import (
 var _ ServerInterface = (*Server)(nil)
 
 type Server struct {
-	commands application.Commands
+	commands *application.Commands
 }
 
-func NewServer(commands application.Commands) Server {
-	return Server{commands: commands}
+func NewServer(commands *application.Commands) *Server {
+	return &Server{commands: commands}
 }
 
-func (s Server) ProvisionSite(c *fiber.Ctx) error {
+func (s *Server) ProvisionSite(c *fiber.Ctx) error {
 	var req dto.ProvisionSiteRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
@@ -33,7 +33,7 @@ func (s Server) ProvisionSite(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(resp)
 }
 
-func (s Server) CheckDomain(c *fiber.Ctx) error {
+func (s *Server) CheckDomain(c *fiber.Ctx) error {
 	var req dto.CheckDomainParams
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
@@ -45,6 +45,23 @@ func (s Server) CheckDomain(c *fiber.Ctx) error {
 	}
 	resp := dto.DomainAvailability{
 		Available: available,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(resp)
+}
+
+func (s *Server) ProvisionHealthcheck(c *fiber.Ctx) error {
+	var req dto.HealthcheckProvisionRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	status, err := s.commands.HealthCheckProvision.Query(req.SiteID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+	resp := dto.HealthcheckProvisionResponse{
+		Status: status,
 	}
 
 	return c.Status(fiber.StatusOK).JSON(resp)

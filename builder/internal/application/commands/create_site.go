@@ -1,21 +1,22 @@
-package command
+package commands
 
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/dto"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/entity"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
-	"time"
 )
 
 type CreateSite struct {
 	*dbs.UOWFactory
 }
 
-func NewCreateSite(factory *dbs.UOWFactory) CreateSite {
-	return CreateSite{UOWFactory: factory}
+func NewCreateSite(factory *dbs.UOWFactory) *CreateSite {
+	return &CreateSite{UOWFactory: factory}
 }
 
 func (c *CreateSite) Execute(req dto.CreateSiteRequest) (uint64, error) {

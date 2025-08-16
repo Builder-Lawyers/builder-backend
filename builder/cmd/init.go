@@ -3,27 +3,36 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/command"
-	ai "github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/openai"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/templater"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/presentation/rest"
-	"github.com/Builder-Lawyers/builder-backend/pkg/db"
-	"github.com/gofiber/fiber/v2"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/application"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/commands"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/query"
+	ai "github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/openai"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/templater"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/presentation/rest"
+	"github.com/Builder-Lawyers/builder-backend/pkg/db"
+	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func Init() {
 	dbConfig := db.NewConfig()
-	uowFactory := db.NewUoWFactory(db.New(dbConfig))
+	pool, err := pgxpool.New(context.Background(), dbConfig.GetDSN())
+	if err != nil {
+		log.Fatalf("failed to create pool: %v", err)
+	}
+	uowFactory := db.NewUoWFactory(pool)
 	templaterClient := templater.NewTemplaterClient(templater.NewTemplaterConfig())
-	commands := command.Collection{
-		CreateSite:    command.NewCreateSite(uowFactory),
-		UpdateSite:    command.NewUpdateSite(uowFactory, *templaterClient),
-		EnrichContent: command.NewEnrichContent(ai.NewOpenAIClient(ai.NewOpenAIConfig())),
+	commands := &application.Collection{
+		CreateSite:    commands.NewCreateSite(uowFactory),
+		UpdateSite:    commands.NewUpdateSite(uowFactory, templaterClient),
+		EnrichContent: commands.NewEnrichContent(ai.NewOpenAIClient(ai.NewOpenAIConfig())),
+		GetSite:       query.NewGetSite(uowFactory, templaterClient),
 	}
 	handler := rest.NewServer(commands)
 	app := fiber.New(fiber.Config{
@@ -46,6 +55,6 @@ func Init() {
 
 	fmt.Println("Running cleanup tasks...")
 
-	uowFactory.Conn.Close(context.Background())
+	uowFactory.Pool.Close()
 	fmt.Println("Fiber was successfully shutdown.")
 }

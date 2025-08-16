@@ -24,6 +24,7 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/storage"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func Init() {
@@ -32,7 +33,11 @@ func Init() {
 
 	// DB
 	dbConfig := dbs.NewConfig()
-	uowFactory := dbs.NewUoWFactory(dbs.New(dbConfig))
+	pool, err := pgxpool.New(context.Background(), dbConfig.GetDSN())
+	if err != nil {
+		log.Fatalf("failed to create pool: %v", err)
+	}
+	uowFactory := dbs.NewUoWFactory(pool)
 	eventRepo := repo.NewEventRepo()
 	provisionRepo := repo.NewProvisionRepo()
 
@@ -50,7 +55,7 @@ func Init() {
 
 	builderClient := builder.NewBuilderClient(builder.NewBuilderConfig())
 
-	commands := application.Commands{
+	commands := &application.Commands{
 		ProvisionSite:     commands.NewProvisionSite(provisionConfig, uowFactory, eventRepo, provisionRepo, s3, templateBuild, dnsProvisioner, acmCerts),
 		ProvisionCDN:      commands.NewProvisionCDN(provisionConfig, uowFactory, provisionRepo, dnsProvisioner),
 		FinalizeProvision: commands.NewFinalizeProvision(provisionConfig, uowFactory, dnsProvisioner, builderClient),
@@ -81,6 +86,6 @@ func Init() {
 
 	fmt.Println("Running cleanup tasks...")
 
-	uowFactory.Conn.Close(context.Background())
+	uowFactory.Pool.Close()
 	fmt.Println("Fiber was successfully shutdown.")
 }

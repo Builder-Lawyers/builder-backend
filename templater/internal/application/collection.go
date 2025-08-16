@@ -11,4 +11,5 @@ type Commands struct {
 	*commands.ProvisionCDN
 	*commands.FinalizeProvision
 	*query.CheckDomain
+	*query.HealthCheckProvision
 }

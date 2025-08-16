@@ -1,22 +1,23 @@
-package command
+package commands
 
 import (
 	"context"
+	"time"
+
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/dto"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/consts"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/templater"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
-	"time"
 )
 
 type UpdateSite struct {
 	*dbs.UOWFactory
-	templater.TemplaterClient
+	*templater.TemplaterClient
 }
 
-func NewUpdateSite(factory *dbs.UOWFactory, client templater.TemplaterClient) UpdateSite {
-	return UpdateSite{UOWFactory: factory, TemplaterClient: client}
+func NewUpdateSite(factory *dbs.UOWFactory, client *templater.TemplaterClient) *UpdateSite {
+	return &UpdateSite{UOWFactory: factory, TemplaterClient: client}
 }
 
 func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, error) {
@@ -84,7 +85,7 @@ func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, 
 				SiteID:        site.ID,
 				ProvisionType: templater.ProvisionSiteRequestProvisionType(*req.DomainType),
 				TemplateName:  templateName,
-				CustomDomain:  *req.Domain,
+				Domain:        *req.Domain,
 				Fields:        fields,
 			}
 			_, err = c.TemplaterClient.ProvisionSite(templaterReq)
@@ -106,6 +107,7 @@ func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, 
 		if err = uow.Commit(); err != nil {
 			return 0, err
 		}
+		// upload new json and rebuild minio prefix
 		return siteID, nil
 	}
 

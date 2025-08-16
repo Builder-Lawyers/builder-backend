@@ -15,10 +15,10 @@ const (
 	BringYourDomain
 )
 
-type ProvisionStatus int
+type ProvisionStatus string
 
 const (
-	InProcess ProvisionStatus = iota
-	Provisioned
-	InError
+	ProvisionStatusInProcess   ProvisionStatus = "IN_PROCESS"
+	ProvisionStatusProvisioned ProvisionStatus = "PROVISIONED"
+	ProvisionStatusInError     ProvisionStatus = "IN_ERROR"
 )

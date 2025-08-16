@@ -23,10 +23,12 @@ type DNSProvisioner struct {
 }
 
 func NewDNSProvisioner(awsConfig aws.Config, domainContact *DomainContact) *DNSProvisioner {
+	domainClientCfg := awsConfig
+	domainClientCfg.Region = "us-east-1"
 	return &DNSProvisioner{
 		domainContact: domainContact,
 		client:        route53.NewFromConfig(awsConfig),
-		domainClient:  route53domains.NewFromConfig(awsConfig),
+		domainClient:  route53domains.NewFromConfig(domainClientCfg),
 		cfClient:      cloudfront.NewFromConfig(awsConfig),
 	}
 }
@@ -186,8 +188,7 @@ func (d *DNSProvisioner) CheckAvailability(domain string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	slog.Info("DNS", out)
-	return false, nil
+	return out.Availability == rdTypes.DomainAvailabilityAvailable, nil
 }
 
 func (d *DNSProvisioner) CreateSubdomain(domain, cfDomain string) error {

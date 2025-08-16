@@ -6,12 +6,12 @@ import (
 	"time"
 
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
+	"github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/client/builder"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/config"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/consts"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/dns"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/events"
-	"github.com/jackc/pgx/v5"
 )
 
 type FinalizeProvision struct {
@@ -33,7 +33,7 @@ func NewFinalizeProvision(
 	}
 }
 
-func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (pgx.Tx, error) {
+func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.UoW, error) {
 	timeout := 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -61,10 +61,10 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (pgx.Tx, erro
 	}
 
 	_, err = tx.Exec(context.Background(), "UPDATE builder.provisions SET status = $1, updated_at = $2 WHERE site_id = $1",
-		consts.Provisioned, time.Now(), event.SiteID)
+		consts.ProvisionStatusProvisioned, time.Now(), event.SiteID)
 	if err != nil {
-		return tx, err
+		return uow, err
 	}
 
-	return tx, nil
+	return uow, nil
 }

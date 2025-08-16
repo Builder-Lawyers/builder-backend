@@ -2,7 +2,7 @@ package scheduler
 
 import (
 	"context"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/command"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/commands"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"log"
@@ -10,13 +10,13 @@ import (
 )
 
 type OutboxPoller struct {
-	commands   command.Collection
+	commands   commands.Collection
 	uowFactory dbs.UOWFactory
 	limit      uint8
 	interval   uint16
 }
 
-func NewOutboxPoller(commands command.Collection, uowFactory dbs.UOWFactory, limit uint8, interval uint16) *OutboxPoller {
+func NewOutboxPoller(commands commands.Collection, uowFactory dbs.UOWFactory, limit uint8, interval uint16) *OutboxPoller {
 	return &OutboxPoller{commands: commands, uowFactory: uowFactory, limit: limit, interval: interval}
 }
 

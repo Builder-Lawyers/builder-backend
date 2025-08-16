@@ -3,9 +3,9 @@ module github.com/Builder-Lawyers/builder-backend/templater
 go 1.24.5
 
 require (
-	github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250720073208-a0b8e3222a2a
-	github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250720073208-a0b8e3222a2a
-	github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250720073208-a0b8e3222a2a
+	github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250816165255-f75aef55e0a0
+	github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250815090941-7183b37ec726
+	github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250816165255-f75aef55e0a0
 	github.com/aws/aws-sdk-go-v2 v1.37.1
 	github.com/aws/aws-sdk-go-v2/config v1.29.17
 	github.com/aws/aws-sdk-go-v2/service/acm v1.34.1
@@ -64,6 +64,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20240226150601-1dcf7310316a // indirect
@@ -106,13 +107,12 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
-	golang.org/x/crypto v0.40.0 // indirect
-	golang.org/x/mod v0.25.0 // indirect
-	golang.org/x/net v0.42.0 // indirect
+	golang.org/x/crypto v0.41.0 // indirect
+	golang.org/x/mod v0.26.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
-	golang.org/x/text v0.27.0 // indirect
-	golang.org/x/tools v0.34.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/tools v0.35.0 // indirect
 	google.golang.org/grpc v1.73.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

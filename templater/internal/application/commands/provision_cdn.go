@@ -7,12 +7,12 @@ import (
 	"time"
 
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
+	shared "github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/application/interfaces"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/config"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/dns"
 	"github.com/Builder-Lawyers/builder-backend/templater/internal/events"
 	"github.com/aws/aws-sdk-go-v2/service/route53domains/types"
-	"github.com/jackc/pgx/v5"
 )
 
 type ProvisionCDN struct {
@@ -33,7 +33,7 @@ func NewProvisionCDN(
 	}
 }
 
-func (c *ProvisionCDN) Handle(event events.ProvisionCDN) (pgx.Tx, error) {
+func (c *ProvisionCDN) Handle(event events.ProvisionCDN) (shared.UoW, error) {
 	siteID := strconv.FormatUint(event.SiteID, 10)
 
 	status, err := c.DNSProvisioner.GetDomainStatus(event.OperationID)
@@ -41,6 +41,7 @@ func (c *ProvisionCDN) Handle(event events.ProvisionCDN) (pgx.Tx, error) {
 	case types.OperationStatusSuccessful:
 		slog.Info("Requested domain was provisioned for site %v", event.SiteID)
 	default:
+		slog.Info("Domain is not provisioned yet for site %v", event.SiteID)
 		return nil, nil
 	}
 
@@ -60,15 +61,15 @@ func (c *ProvisionCDN) Handle(event events.ProvisionCDN) (pgx.Tx, error) {
 
 	provision, err := c.GetProvisionByID(tx, siteID)
 	if err != nil {
-		return tx, err
+		return uow, err
 	}
 	provision.CloudfrontID = distributionID
 
 	_, err = tx.Exec(context.Background(), "UPDATE builder.provisions SET cloudfront_id = $1, updated_at = $2 WHERE site_id = $3",
 		provision.CloudfrontID, time.Now(), event.SiteID)
 	if err != nil {
-		return tx, err
+		return uow, err
 	}
 
-	return tx, nil
+	return uow, nil
 }

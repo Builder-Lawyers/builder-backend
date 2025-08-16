@@ -1,7 +1,7 @@
 package config
 
 import (
-	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -9,11 +9,13 @@ import (
 )
 
 type ProvisionConfig struct {
-	BuildFolder string
-	PathToFile  string
-	Filename    string
-	BaseDomain  string
-	Defaults    *Defaults
+	BuildFolder     string
+	TemplatesFolder string
+	BucketPath      string
+	PathToFile      string
+	Filename        string
+	BaseDomain      string
+	Defaults        *Defaults
 }
 
 type Defaults struct {
@@ -26,13 +28,14 @@ func NewProvisionConfig() *ProvisionConfig {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Current working directory:", wd)
+	slog.Info("Current working directory: %v", "config", wd)
 	parent := filepath.Dir(filepath.Dir(wd))
-	buildFolder := filepath.Join(parent, "templates-monorepo", "templates")
-	//target := filepath.Join(parent, "templates")
-	fmt.Println(buildFolder)
+	buildFolder := filepath.Join(parent, "templates-monorepo2")
+	templatesFolder := filepath.Join(buildFolder, "templates")
 	return &ProvisionConfig{
 		env.GetEnv("P_BUILD_FOLDER", buildFolder),
+		env.GetEnv("P_TEMPLATES_FOLDER", templatesFolder),
+		env.GetEnv("P_BUCKET_PATH", "templates-sources/"),
 		env.GetEnv("P_PATH_TO_FILE", "/src/pages/"),
 		env.GetEnv("P_FILENAME", "_page.json"),
 		os.Getenv("P_BASE_DOMAIN"),

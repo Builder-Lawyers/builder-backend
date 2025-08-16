@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/Builder-Lawyers/builder-backend/pkg/env"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"io"
 	"log"
-	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Builder-Lawyers/builder-backend/pkg/env"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type Storage struct {
@@ -67,12 +67,10 @@ func (s *Storage) UploadFile(key string, contentType *string, body io.Reader) er
 	return nil
 }
 
-func (s *Storage) ListFiles(limit int32, prefix string) []string {
-	params := &s3.ListObjectsV2Input{
-		Bucket: &s.bucket,
-		Prefix: &prefix,
-	}
-	p := s3.NewListObjectsV2Paginator(s.client, params, func(o *s3.ListObjectsV2PaginatorOptions) {
+func (s *Storage) ListFiles(limit int32, input *s3.ListObjectsV2Input) []string {
+	input.Bucket = &s.bucket
+
+	p := s3.NewListObjectsV2Paginator(s.client, input, func(o *s3.ListObjectsV2PaginatorOptions) {
 		o.Limit = limit
 	})
 
@@ -91,25 +89,32 @@ func (s *Storage) ListFiles(limit int32, prefix string) []string {
 	return files
 }
 
-func (s *Storage) DownloadFiles(keys []string, destination string) error {
-	bucket := "sanity-web"
+func (s *Storage) DownloadFiles(keys []string, destination, pathAfter string) error {
 	for _, key := range keys {
 		params := &s3.GetObjectInput{
-			Bucket: &bucket,
+			Bucket: &s.bucket,
 			Key:    aws.String(key),
 		}
 		resp, err := s.client.GetObject(context.Background(), params)
 		if err != nil {
 			return fmt.Errorf("error downloading key %s: %w", key, err)
 		}
+		destKey := strings.TrimPrefix(key, pathAfter+"/")
+		//slog.Info("got object from s3, uploading to local",
+		//	"key", key,
+		//	"destination", filepath.Join(destination, destKey),
+		//)
 
-		return s.readAndCopyObjectTo(resp.Body, filepath.Join(destination, key))
+		err = s.readAndCopyObjectTo(resp.Body, filepath.Join(destination, destKey))
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (s *Storage) readAndCopyObjectTo(content io.ReadCloser, destination string) error {
-	slog.Info("saving file to %v", destination)
+	//slog.Info("saving file to", "dest", destination)
 	defer content.Close()
 	if err := os.MkdirAll(filepath.Dir(destination), os.ModePerm); err != nil {
 		return fmt.Errorf("error creating directories for %s: %w", destination, err)

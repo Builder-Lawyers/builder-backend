@@ -33,8 +33,7 @@ func (p ProvisionRepo) GetProvisionByID(tx pgx.Tx, siteID string) (db.Provision,
 }
 
 func (p ProvisionRepo) InsertProvision(tx pgx.Tx, provision db.Provision) error {
-	_, err := tx.Exec(context.Background(), "INSERT INTO builder.provisions(site_id, type, domain, cert_arn, cloudfront_id, created_at, updated_at) "+
-		"VALUES ($1,$2,$3,$4,$5,$6)", provision.SiteID, provision.Type, provision.Domain, provision.CertificateARN,
+	_, err := tx.Exec(context.Background(), "INSERT INTO builder.provisions(site_id, type, status, domain, cert_arn, cloudfront_id, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)", provision.SiteID, provision.Type, provision.Status, provision.Domain, provision.CertificateARN,
 		provision.CloudfrontID, provision.CreatedAt, provision.UpdatedAt)
 	if err != nil {
 		return err

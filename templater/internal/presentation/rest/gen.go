@@ -15,6 +15,9 @@ type ServerInterface interface {
 	// Provision a new site
 	// (POST /provision)
 	ProvisionSite(c *fiber.Ctx) error
+	// Run healthchecks on site's provision
+	// (POST /provision/healthcheck)
+	ProvisionHealthcheck(c *fiber.Ctx) error
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -34,6 +37,12 @@ func (siw *ServerInterfaceWrapper) CheckDomain(c *fiber.Ctx) error {
 func (siw *ServerInterfaceWrapper) ProvisionSite(c *fiber.Ctx) error {
 
 	return siw.Handler.ProvisionSite(c)
+}
+
+// ProvisionHealthcheck operation middleware
+func (siw *ServerInterfaceWrapper) ProvisionHealthcheck(c *fiber.Ctx) error {
+
+	return siw.Handler.ProvisionHealthcheck(c)
 }
 
 // FiberServerOptions provides options for the Fiber server.
@@ -60,5 +69,7 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Post(options.BaseURL+"/domain/check", wrapper.CheckDomain)
 
 	router.Post(options.BaseURL+"/provision", wrapper.ProvisionSite)
+
+	router.Post(options.BaseURL+"/provision/healthcheck", wrapper.ProvisionHealthcheck)
 
 }

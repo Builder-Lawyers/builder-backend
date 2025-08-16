@@ -1,4 +1,4 @@
-package command
+package commands
 
 import (
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/dto"
@@ -9,8 +9,8 @@ type EnrichContent struct {
 	aiClient *ai.OpenAIClient
 }
 
-func NewEnrichContent(client *ai.OpenAIClient) EnrichContent {
-	return EnrichContent{
+func NewEnrichContent(client *ai.OpenAIClient) *EnrichContent {
+	return &EnrichContent{
 		client,
 	}
 }

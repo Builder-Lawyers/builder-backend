@@ -1,7 +1,7 @@
 package rest
 
 import (
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/command"
+	"github.com/Builder-Lawyers/builder-backend/builder/internal/application"
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/dto"
 	"github.com/gofiber/fiber/v2"
 )
@@ -9,11 +9,11 @@ import (
 var _ ServerInterface = (*Server)(nil)
 
 type Server struct {
-	commands command.Collection
+	commands *application.Collection
 }
 
-func NewServer(commands command.Collection) Server {
-	return Server{commands: commands}
+func NewServer(commands *application.Collection) *Server {
+	return &Server{commands: commands}
 }
 
 func (s Server) CreateSite(c *fiber.Ctx) error {
