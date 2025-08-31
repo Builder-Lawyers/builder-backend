@@ -5,54 +5,6 @@ info:
   description: API for provisioning user sites
 
 paths:
-  /domain/check:
-    post:
-      summary: Checks domain availability
-      description: Returns whether a domain is available or not
-      operationId: checkDomain
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CheckDomainParams'
-      responses:
-        '200':
-          description: Domain availability info
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DomainAvailability'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /provision/healthcheck:
-    post:
-      summary: Run healthchecks on site's provision
-      description: Returns whether a site is healthy or down
-      operationId: provisionHealthcheck
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HealthcheckProvisionRequest'
-      responses:
-        '200':
-          description: Domain availability info
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthcheckProvisionResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
   /provision:
     post:
       summary: Provision a new site

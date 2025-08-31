@@ -10,5 +10,11 @@ type Collection struct {
 	*commands.UpdateSite
 	*commands.DeleteSite
 	*commands.EnrichContent
+	*commands.ProvisionSite
+	*commands.RequestProvision
+	*commands.ProvisionCDN
+	*commands.FinalizeProvision
 	*query.GetSite
+	*query.CheckDomain
+	*query.HealthCheckProvision
 }
