@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/dto"
@@ -72,6 +73,7 @@ func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, 
 		//	}
 		//}
 		if site.Status == consts.AwaitingProvision {
+			slog.Info("requesting site provision", "siteID", siteID)
 			var templateName string
 			err = tx.QueryRow(context.Background(), "SELECT name FROM builder.templates WHERE id = $1", site.TemplateID).Scan(&templateName)
 			if err != nil {
@@ -82,14 +84,18 @@ func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, 
 				fields = *req.Fields
 			}
 			templaterReq := templater.ProvisionSiteRequest{
-				SiteID:        site.ID,
-				ProvisionType: templater.ProvisionSiteRequestProvisionType(*req.DomainType),
-				TemplateName:  templateName,
-				Domain:        *req.Domain,
-				Fields:        fields,
+				SiteID:       siteID,
+				DomainType:   templater.ProvisionSiteRequestDomainType(*req.DomainType),
+				TemplateName: templateName,
+				Domain:       *req.Domain,
+				Fields:       fields,
 			}
-			_, err = c.TemplaterClient.ProvisionSite(templaterReq)
+			timeout := 3 * time.Second
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+			_, err = c.TemplaterClient.ProvisionSite(ctx, templaterReq)
 			if err != nil {
+				slog.Error("Error requesting provision", "err", err)
 				return 0, err
 			}
 		}

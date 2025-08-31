@@ -88,7 +88,7 @@ func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (shared.UoW, 
 	}
 	cleanBuild(customizeJsonPath)
 
-	if err = c.uploadFiles(siteID, event.TemplateName, buildPath); err != nil {
+	if err = c.uploadFiles("sites/"+siteID, event.TemplateName, buildPath); err != nil {
 		return nil, err
 	}
 
@@ -100,10 +100,9 @@ func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (shared.UoW, 
 	case consts.DefaultDomain:
 
 		domain = fmt.Sprintf("%v.%v", event.Domain, c.cfg.BaseDomain)
-		timeout := 5 * time.Second
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		distributionID, err := c.DNSProvisioner.MapCfDistributionToS3(ctx, "/"+siteID, c.cfg.Defaults.S3Domain, domain, c.cfg.Defaults.CertARN)
+		distributionID, err := c.DNSProvisioner.MapCfDistributionToS3(ctx, "/sites/"+siteID, c.cfg.Defaults.S3Domain, domain, c.cfg.Defaults.CertARN)
 		if err != nil {
 			return nil, err
 		}
@@ -111,6 +110,7 @@ func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (shared.UoW, 
 			SiteID:         event.SiteID,
 			DistributionID: distributionID,
 			Domain:         domain,
+			DomainType:     event.DomainType,
 			CreatedAt:      time.Now(),
 		}
 		newProvision = db.Provision{
@@ -128,8 +128,7 @@ func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (shared.UoW, 
 	case consts.SeparateDomain:
 
 		domain = event.Domain
-		timeout := 3 * time.Second
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		operationID, err := c.DNSProvisioner.RequestDomain(ctx, domain)
 		if err != nil {
@@ -197,7 +196,7 @@ func (c *ProvisionSite) uploadFiles(siteID, templateName, dir string) error {
 		if err != nil {
 			return fmt.Errorf("can't put object %v", err)
 		}
-		if err := file.Close(); err != nil {
+		if err = file.Close(); err != nil {
 			return fmt.Errorf("failed to close file %s: %v", f, err)
 		}
 		slog.Info("Uploaded file", "fileUpload", f)

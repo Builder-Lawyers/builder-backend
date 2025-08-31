@@ -36,6 +36,7 @@ func (s ProvisionCDN) GetType() string {
 type FinalizeProvision struct {
 	SiteID         uint64
 	DistributionID string
+	DomainType     consts.ProvisionType
 	Domain         string
 	CreatedAt      time.Time
 }

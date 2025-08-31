@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -124,6 +125,10 @@ func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
 		event := db.MapOutboxModelToFinalizeProvision(outbox)
 		uow, err = o.commands.FinalizeProvision.Handle(event)
 		if err != nil {
+			if strings.Contains(err.Error(), "timed out waiting for distribution to deploy") {
+				slog.Warn("Distribution still deploying, will retry later")
+				return nil
+			}
 			status = 2
 		}
 		break

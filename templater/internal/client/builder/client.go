@@ -20,7 +20,7 @@ func NewBuilderClient(config *BuilderConfig) *BuilderClient {
 	}
 }
 
-func (c *BuilderClient) UpdateSite(siteID uint64, req UpdateSiteRequest) (int, error) {
+func (c *BuilderClient) UpdateSite(siteID uint64, req UpdateSiteRequest) (uint64, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return 0, err
@@ -35,13 +35,13 @@ func (c *BuilderClient) UpdateSite(siteID uint64, req UpdateSiteRequest) (int, e
 	}
 	defer resp.Body.Close()
 
-	var result int
+	var result UpdateSiteResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
 		return 0, err
 	}
 
-	return result, nil
+	return result.SiteID, nil
 }
 
 func (c *BuilderClient) getURL() string {

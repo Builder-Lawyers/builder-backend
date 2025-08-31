@@ -95,7 +95,7 @@ components:
           type: integer
           format: uint64
           example: 101
-        provisionType:
+        domainType:
           type: string
           enum: [DefaultDomain, SeparateDomain, BringYourDomain]
         templateName:
@@ -110,7 +110,7 @@ components:
           additionalProperties: true
       required:
         - siteID
-        - provisionType
+        - domainType
         - templateName
         - domain
         - fields

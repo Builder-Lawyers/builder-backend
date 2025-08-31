@@ -10,11 +10,11 @@ const (
 	Unhealthy      HealthcheckProvisionResponseStatus = "Unhealthy"
 )
 
-// Defines values for ProvisionSiteRequestProvisionType.
+// Defines values for ProvisionSiteRequestDomainType.
 const (
-	BringYourDomain ProvisionSiteRequestProvisionType = "BringYourDomain"
-	DefaultDomain   ProvisionSiteRequestProvisionType = "DefaultDomain"
-	SeparateDomain  ProvisionSiteRequestProvisionType = "SeparateDomain"
+	BringYourDomain ProvisionSiteRequestDomainType = "BringYourDomain"
+	DefaultDomain   ProvisionSiteRequestDomainType = "DefaultDomain"
+	SeparateDomain  ProvisionSiteRequestDomainType = "SeparateDomain"
 )
 
 // CheckDomainParams defines model for CheckDomainParams.
@@ -47,17 +47,17 @@ type HealthcheckProvisionResponseStatus string
 
 // ProvisionSiteRequest defines model for ProvisionSiteRequest.
 type ProvisionSiteRequest struct {
-	Domain string `json:"domain"`
+	Domain     string                         `json:"domain"`
+	DomainType ProvisionSiteRequestDomainType `json:"domainType"`
 
 	// Fields json object with all widgets and fields of a site
-	Fields        map[string]interface{}            `json:"fields"`
-	ProvisionType ProvisionSiteRequestProvisionType `json:"provisionType"`
-	SiteID        uint64                            `json:"siteID"`
-	TemplateName  string                            `json:"templateName"`
+	Fields       map[string]interface{} `json:"fields"`
+	SiteID       uint64                 `json:"siteID"`
+	TemplateName string                 `json:"templateName"`
 }
 
-// ProvisionSiteRequestProvisionType defines model for ProvisionSiteRequest.ProvisionType.
-type ProvisionSiteRequestProvisionType string
+// ProvisionSiteRequestDomainType defines model for ProvisionSiteRequest.DomainType.
+type ProvisionSiteRequestDomainType string
 
 // ProvisionSiteResponse defines model for ProvisionSiteResponse.
 type ProvisionSiteResponse struct {

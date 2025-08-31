@@ -2,46 +2,54 @@ package templater
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"time"
 )
 
 type TemplaterClient struct {
 	cfg    *TemplaterConfig
-	client http.Client
+	client *http.Client
 }
 
 func NewTemplaterClient(config *TemplaterConfig) *TemplaterClient {
 	return &TemplaterClient{
 		config,
-		http.Client{Timeout: 4 * time.Second},
+		&http.Client{Timeout: 4 * time.Second,
+			Transport: &http.Transport{
+				// This forces DNS/TCP retries to log
+				Proxy: http.ProxyFromEnvironment,
+			}},
 	}
 }
 
-func (c *TemplaterClient) ProvisionSite(req ProvisionSiteRequest) (int, error) {
+func (c *TemplaterClient) ProvisionSite(ctx context.Context, req ProvisionSiteRequest) (uint64, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return 0, err
 	}
-	request, err := http.NewRequest("POST", c.getURL()+"/provision", bytes.NewBuffer(body))
+	request, err := http.NewRequestWithContext(ctx, "POST", c.getURL()+"/provision", bytes.NewBuffer(body))
 	if err != nil {
 		return 0, err
 	}
+	request.Header.Set("Content-Type", "application/json")
+	dump, _ := httputil.DumpRequestOut(request, true)
+	fmt.Println(string(dump))
 	resp, err := c.client.Do(request)
 	if err != nil {
 		return 0, err
 	}
 	defer resp.Body.Close()
 
-	var result int
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	if err != nil {
+	var result ProvisionSiteResponse
+	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return 0, err
 	}
 
-	return result, nil
+	return result.SiteID, nil
 }
 
 func (c *TemplaterClient) HealthCheckSite(siteID uint64) (HealthcheckProvisionResponseStatus, error) {

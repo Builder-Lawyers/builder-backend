@@ -39,22 +39,26 @@ func (b *TemplateBuild) RunFrontendBuild(path string) (string, error) {
 		err = installDeps.Start()
 		if err != nil {
 			slog.Error("failed to install dependencies: %v", "build", err)
+			return "", err
 		}
 		err = installDeps.Wait()
 		if err != nil {
 			slog.Error("failed to install dependencies: %v", "build", err)
+			return "", err
 		}
 
 		build = createProcess(path, "npm run build")
 		err = build.Start()
 		if err != nil {
 			slog.Error("failed to start npm run build: %v", "build", err)
+			return "", err
 		}
 
 		log.Printf("npm run build started with PID %d", build.Process.Pid)
 		err = build.Wait()
 		if err != nil {
 			slog.Error("fatal error", "build", err)
+			return "", err
 		}
 	}
 

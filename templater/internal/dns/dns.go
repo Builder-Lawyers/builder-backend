@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -191,15 +192,19 @@ func (d *DNSProvisioner) CheckAvailability(domain string) (bool, error) {
 	return out.Availability == rdTypes.DomainAvailabilityAvailable, nil
 }
 
-func (d *DNSProvisioner) CreateSubdomain(domain, cfDomain string) error {
+func (d *DNSProvisioner) CreateSubdomain(baseDomain, domain, cfDomain string) error {
 
 	res, err := d.client.ListHostedZonesByName(context.Background(), &route53.ListHostedZonesByNameInput{
-		DNSName: aws.String(domain),
+		DNSName: aws.String(baseDomain),
 	})
 	if err != nil {
 		return err
 	}
-	hostedZoneID := aws.ToString(res.HostedZoneId)
+	var hostedZoneID string
+	for _, hostedZone := range res.HostedZones {
+		parts := strings.SplitN(aws.ToString(hostedZone.Id), "/hostedzone/", 2)
+		hostedZoneID = parts[1]
+	}
 	fmt.Println(hostedZoneID) // TODO: make sure it's correct
 
 	input := &route53.ChangeResourceRecordSetsInput{

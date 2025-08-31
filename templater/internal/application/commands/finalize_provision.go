@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"time"
 
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
@@ -42,7 +43,14 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 		slog.Error("err waiting for deployment of distribution", "cf", err)
 		return nil, err
 	}
-	err = c.DNSProvisioner.CreateSubdomain(event.Domain, cfDomain)
+	var baseDomain string
+	firstPart := strings.Index(event.Domain, ".")
+	if event.DomainType == consts.DefaultDomain {
+		baseDomain = event.Domain[firstPart+1:]
+	} else {
+		baseDomain = event.Domain
+	}
+	err = c.DNSProvisioner.CreateSubdomain(baseDomain, event.Domain, cfDomain)
 	if err != nil {
 		slog.Error("err creating route53 subdomain", "r53", err)
 		return nil, err
@@ -60,7 +68,7 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 		return nil, err
 	}
 
-	_, err = tx.Exec(context.Background(), "UPDATE builder.provisions SET status = $1, updated_at = $2 WHERE site_id = $1",
+	_, err = tx.Exec(context.Background(), "UPDATE builder.provisions SET status = $1, updated_at = $2 WHERE site_id = $3",
 		consts.ProvisionStatusProvisioned, time.Now(), event.SiteID)
 	if err != nil {
 		return uow, err

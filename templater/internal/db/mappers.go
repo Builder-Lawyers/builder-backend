@@ -60,6 +60,7 @@ func MapOutboxModelToFinalizeProvision(outbox Outbox) events.FinalizeProvision {
 		SiteID         uint64 `json:"siteID"`
 		DistributionID string `json:"distributionID"`
 		Domain         string `json:"domain"`
+		DomainType     string `json:"domainType"`
 	}
 
 	if err := json.Unmarshal(outbox.Payload, &payload); err != nil {
@@ -71,6 +72,7 @@ func MapOutboxModelToFinalizeProvision(outbox Outbox) events.FinalizeProvision {
 		SiteID:         payload.SiteID,
 		DistributionID: payload.DistributionID,
 		Domain:         payload.Domain,
+		DomainType:     consts.ProvisionType(payload.DomainType),
 		CreatedAt:      outbox.CreatedAt,
 	}
 }

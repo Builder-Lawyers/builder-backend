@@ -7,12 +7,12 @@ const (
 	Processed
 )
 
-type ProvisionType int
+type ProvisionType string
 
 const (
-	DefaultDomain ProvisionType = iota
-	SeparateDomain
-	BringYourDomain
+	DefaultDomain   ProvisionType = "DefaultDomain"
+	SeparateDomain  ProvisionType = "SeparateDomain"
+	BringYourDomain ProvisionType = "BringYourDomain"
 )
 
 type ProvisionStatus string
