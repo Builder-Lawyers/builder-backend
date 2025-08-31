@@ -29,7 +29,7 @@ func NewProvisionConfig() *ProvisionConfig {
 		panic(err)
 	}
 	slog.Info("Current working directory: %v", "config", wd)
-	parent := filepath.Dir(filepath.Dir(wd))
+	parent := filepath.Dir(wd)
 	buildFolder := filepath.Join(parent, "templates-monorepo2")
 	templatesFolder := filepath.Join(buildFolder, "templates")
 	return &ProvisionConfig{

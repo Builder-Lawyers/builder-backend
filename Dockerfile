@@ -1,7 +1,10 @@
 FROM golang:1.24.5 AS build
 WORKDIR /app
-COPY /builder /app
-COPY builder/go.mod builder/go.sum /modules/
+COPY "/cmd" "/app/cmd"
+COPY /pkg /app/pkg
+COPY /internal /app/internal
+COPY ./main.go /app
+COPY ./go.mod ./go.sum /app/
 
 RUN go mod download
 RUN go env -w CGO_ENABLED=0

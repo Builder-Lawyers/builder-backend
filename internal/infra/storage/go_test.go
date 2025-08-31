@@ -2,13 +2,15 @@ package storage
 
 import (
 	"context"
+	"log"
+	"os"
+	"testing"
+
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/localstack"
-	"log"
-	"os"
-	"testing"
 )
 
 var s3Client *Storage
@@ -48,7 +50,11 @@ func TestMain(m *testing.M) {
 	os.Setenv("AWS_REGION", "us-east-1")
 	os.Setenv("AWS_ENDPOINT_URL", "http://"+host+":"+mappedPort.Port())
 
-	s3Client = NewStorage()
+	cfg, err := awsConfig.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		log.Panic("can't load aws config", err)
+	}
+	s3Client = NewStorage(cfg)
 
 	exitCode := m.Run()
 

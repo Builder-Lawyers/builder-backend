@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/dto"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/entity"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/db"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
+	"github.com/Builder-Lawyers/builder-backend/internal/domain/entity"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 )
 

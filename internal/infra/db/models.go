@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/builder/application/consts"
+	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
 	"github.com/google/uuid"
 )
 

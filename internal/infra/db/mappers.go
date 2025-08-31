@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/consts"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/entity"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/templater/events"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
+	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
+	"github.com/Builder-Lawyers/builder-backend/internal/domain/entity"
 )
 
 func MapSiteModelToEntity(site Site, user User) entity.Site {

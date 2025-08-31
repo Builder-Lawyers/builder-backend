@@ -1,4 +1,0 @@
-package: builder
-generate:
-  models: true
-output: internal/client/builder/dto.go

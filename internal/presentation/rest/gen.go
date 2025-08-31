@@ -15,9 +15,15 @@ type ServerInterface interface {
 	// Enrich some user provided info using AI
 	// (POST /ai/enrich)
 	EnrichContent(c *fiber.Ctx) error
+	// Checks domain availability
+	// (POST /domain/check)
+	CheckDomain(c *fiber.Ctx) error
 	// Create a new site
 	// (POST /sites)
 	CreateSite(c *fiber.Ctx) error
+	// Get info about an existing site
+	// (GET /sites/{id})
+	GetSite(c *fiber.Ctx, id uint64) error
 	// Update an existing site
 	// (PATCH /sites/{id})
 	UpdateSite(c *fiber.Ctx, id uint64) error
@@ -36,10 +42,32 @@ func (siw *ServerInterfaceWrapper) EnrichContent(c *fiber.Ctx) error {
 	return siw.Handler.EnrichContent(c)
 }
 
+// CheckDomain operation middleware
+func (siw *ServerInterfaceWrapper) CheckDomain(c *fiber.Ctx) error {
+
+	return siw.Handler.CheckDomain(c)
+}
+
 // CreateSite operation middleware
 func (siw *ServerInterfaceWrapper) CreateSite(c *fiber.Ctx) error {
 
 	return siw.Handler.CreateSite(c)
+}
+
+// GetSite operation middleware
+func (siw *ServerInterfaceWrapper) GetSite(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id uint64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Params("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter id: %w", err).Error())
+	}
+
+	return siw.Handler.GetSite(c, id)
 }
 
 // UpdateSite operation middleware
@@ -81,7 +109,11 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 
 	router.Post(options.BaseURL+"/ai/enrich", wrapper.EnrichContent)
 
+	router.Post(options.BaseURL+"/domain/check", wrapper.CheckDomain)
+
 	router.Post(options.BaseURL+"/sites", wrapper.CreateSite)
+
+	router.Get(options.BaseURL+"/sites/:id", wrapper.GetSite)
 
 	router.Patch(options.BaseURL+"/sites/:id", wrapper.UpdateSite)
 

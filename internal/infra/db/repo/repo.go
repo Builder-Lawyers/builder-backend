@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/Builder-Lawyers/builder-backend/internal/application/interfaces"
+	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	shared "github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
-	"github.com/Builder-Lawyers/builder-backend/templater/internal/application/interfaces"
-	"github.com/Builder-Lawyers/builder-backend/templater/internal/consts"
-	"github.com/Builder-Lawyers/builder-backend/templater/internal/db"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -58,7 +58,7 @@ func (e EventRepo) InsertEvent(tx pgx.Tx, event shared.Event) error {
 	}
 	outbox := db.Outbox{
 		Event:     event.GetType(),
-		Status:    consts.NotProcessed,
+		Status:    int(consts.NotProcessed),
 		Payload:   json.RawMessage(payload),
 		CreatedAt: time.Now(),
 	}

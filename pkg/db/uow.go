@@ -23,7 +23,7 @@ func (u *UOW) Begin() (pgx.Tx, error) {
 	if err != nil {
 		return nil, fmt.Errorf("can't acquire conn, %w", err)
 	}
-	slog.Info("acquired conn", "pid", conn.Conn().PgConn().PID())
+	slog.Debug("acquired conn", "pid", conn.Conn().PgConn().PID())
 
 	tx, err := conn.BeginTx(context.Background(), pgx.TxOptions{})
 	if err != nil {

@@ -2,23 +2,24 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"time"
 
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/dto"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/domain/consts"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/templater"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/infra/db"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/interfaces"
+	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 )
 
 type UpdateSite struct {
 	*dbs.UOWFactory
-	*templater.TemplaterClient
+	interfaces.EventRepo
 }
 
-func NewUpdateSite(factory *dbs.UOWFactory, client *templater.TemplaterClient) *UpdateSite {
-	return &UpdateSite{UOWFactory: factory, TemplaterClient: client}
+func NewUpdateSite(factory *dbs.UOWFactory, eventRepo interfaces.EventRepo) *UpdateSite {
+	return &UpdateSite{UOWFactory: factory, EventRepo: eventRepo}
 }
 
 func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, error) {
@@ -59,19 +60,7 @@ func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, 
 		if err != nil {
 			return 0, err
 		}
-		//// TODO: Move this logic to domain
-		//if oldSite.Status == consts.AwaitingProvision {
-		//	siteProvision := db.Outbox{
-		//		Event:     "SiteAwaitingProvision",
-		//		Status:    int(consts.NotProcessed),
-		//		CreatedAt: time.Now(),
-		//	}
-		//	_, err = tx.Exec(context.Background(), "INSERT INTO builder.outbox(event, status, created_at) VALUES ($1, $2, $3)",
-		//		siteProvision.Event, siteProvision.Status, siteProvision.CreatedAt)
-		//	if err != nil {
-		//		return 0, err
-		//	}
-		//}
+
 		if site.Status == consts.AwaitingProvision {
 			slog.Info("requesting site provision", "siteID", siteID)
 			var templateName string
@@ -83,19 +72,29 @@ func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, 
 			if req.Fields != nil {
 				fields = *req.Fields
 			}
-			templaterReq := templater.ProvisionSiteRequest{
+			templaterReq := dto.ProvisionSiteRequest{
 				SiteID:       siteID,
-				DomainType:   templater.ProvisionSiteRequestDomainType(*req.DomainType),
+				DomainType:   consts.ProvisionType(*req.DomainType),
 				TemplateName: templateName,
 				Domain:       *req.Domain,
 				Fields:       fields,
 			}
-			timeout := 3 * time.Second
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
-			defer cancel()
-			_, err = c.TemplaterClient.ProvisionSite(ctx, templaterReq)
+			payload, err := json.Marshal(templaterReq)
 			if err != nil {
-				slog.Error("Error requesting provision", "err", err)
+				return 0, err
+			}
+			outbox := db.Outbox{
+				Event:     "SiteAwaitingProvision",
+				Status:    int(consts.NotProcessed),
+				Payload:   json.RawMessage(payload),
+				CreatedAt: time.Now(),
+			}
+			err = tx.QueryRow(context.Background(), "INSERT INTO builder.outbox (event, status, payload, created_at) VALUES ($1,$2,$3,$4) RETURNING id",
+				outbox.Event, outbox.Status, outbox.Payload, outbox.CreatedAt).Scan(&outbox.ID)
+			if err != nil {
+				return 0, err
+			}
+			if err = tx.Commit(context.Background()); err != nil {
 				return 0, err
 			}
 		}

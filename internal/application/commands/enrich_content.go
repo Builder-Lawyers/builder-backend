@@ -1,8 +1,8 @@
 package commands
 
 import (
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/dto"
-	ai "github.com/Builder-Lawyers/builder-backend/builder/internal/infra/client/openai"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
+	ai "github.com/Builder-Lawyers/builder-backend/internal/infra/client/openai"
 )
 
 type EnrichContent struct {

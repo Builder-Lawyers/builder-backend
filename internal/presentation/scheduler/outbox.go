@@ -7,23 +7,23 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Builder-Lawyers/builder-backend/internal/application"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
-	"github.com/Builder-Lawyers/builder-backend/templater/internal/application"
-	"github.com/Builder-Lawyers/builder-backend/templater/internal/db"
-	"github.com/Builder-Lawyers/builder-backend/templater/internal/events"
 	"github.com/jackc/pgx/v5"
 )
 
 type OutboxPoller struct {
-	commands   *application.Commands
+	handlers   *application.Handlers
 	uowFactory *dbs.UOWFactory
 	limit      uint8
 	interval   uint16
 }
 
-func NewOutboxPoller(commands *application.Commands, uowFactory *dbs.UOWFactory, limit uint8, interval uint16) *OutboxPoller {
-	return &OutboxPoller{commands: commands, uowFactory: uowFactory, limit: limit, interval: interval}
+func NewOutboxPoller(handlers *application.Handlers, uowFactory *dbs.UOWFactory, limit uint8, interval uint16) *OutboxPoller {
+	return &OutboxPoller{handlers: handlers, uowFactory: uowFactory, limit: limit, interval: interval}
 }
 
 func (o *OutboxPoller) Start() {
@@ -109,21 +109,21 @@ func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
 	switch outbox.Event {
 	case events.SiteAwaitingProvision{}.GetType():
 		event := db.MapOutboxModelToSiteAwaitingProvisionEvent(outbox)
-		uow, err = o.commands.ProvisionSite.Handle(event)
+		uow, err = o.handlers.ProvisionSite.Handle(event)
 		if err != nil {
 			status = 2
 		}
 		break
 	case events.ProvisionCDN{}.GetType():
 		event := db.MapOutboxModelToProvisionCDN(outbox)
-		uow, err = o.commands.ProvisionCDN.Handle(event)
+		uow, err = o.handlers.ProvisionCDN.Handle(event)
 		if err != nil {
 			status = 2
 		}
 		break
 	case events.FinalizeProvision{}.GetType():
 		event := db.MapOutboxModelToFinalizeProvision(outbox)
-		uow, err = o.commands.FinalizeProvision.Handle(event)
+		uow, err = o.handlers.FinalizeProvision.Handle(event)
 		if err != nil {
 			if strings.Contains(err.Error(), "timed out waiting for distribution to deploy") {
 				slog.Warn("Distribution still deploying, will retry later")

@@ -1,8 +1,9 @@
 package interfaces
 
 import (
-	"github.com/Builder-Lawyers/builder-backend/internal/db"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	"github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
+	"github.com/jackc/pgx/v5"
 )
 
 type ProvisionRepo interface {

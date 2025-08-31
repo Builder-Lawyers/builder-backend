@@ -1,7 +1,7 @@
 package query
 
 import (
-	"github.com/Builder-Lawyers/builder-backend/templater/internal/dns"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
 )
 
 type CheckDomain struct {

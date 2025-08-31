@@ -3,4 +3,4 @@ generate:
   fiber-server: true
 output: internal/presentation/rest/gen.go
 import-mapping:
-  "#/components/schemas": github.com/Builder-Lawyers/builder-backend/builder/internal/application/dto
+  "#/components/schemas": github.com/Builder-Lawyers/builder-backend/internal/application/dto

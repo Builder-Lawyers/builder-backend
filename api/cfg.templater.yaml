@@ -1,4 +1,0 @@
-package: templater
-generate:
-  models: true
-output: internal/infra/client/templater/dto.go

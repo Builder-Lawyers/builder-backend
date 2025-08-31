@@ -1,4 +1,4 @@
 package: dto
 generate:
   models: true
-output: internal/application/dto/dto.go
+output: internal/application/dto/gen.go

@@ -6,12 +6,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/interfaces"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	shared "github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
-	"github.com/Builder-Lawyers/builder-backend/templater/internal/application/interfaces"
-	"github.com/Builder-Lawyers/builder-backend/templater/internal/config"
-	"github.com/Builder-Lawyers/builder-backend/templater/internal/dns"
-	"github.com/Builder-Lawyers/builder-backend/templater/internal/events"
 	"github.com/aws/aws-sdk-go-v2/service/route53domains/types"
 )
 

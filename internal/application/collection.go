@@ -1,20 +1,18 @@
 package application
 
 import (
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/commands"
-	"github.com/Builder-Lawyers/builder-backend/builder/internal/application/query"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/commands"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/query"
 )
 
-type Collection struct {
+type Handlers struct {
 	*commands.CreateSite
 	*commands.UpdateSite
 	*commands.DeleteSite
 	*commands.EnrichContent
 	*commands.ProvisionSite
-	*commands.RequestProvision
 	*commands.ProvisionCDN
 	*commands.FinalizeProvision
 	*query.GetSite
 	*query.CheckDomain
-	*query.HealthCheckProvision
 }

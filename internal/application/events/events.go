@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/Builder-Lawyers/builder-backend/templater/internal/consts"
+	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
 )
 
 type SiteAwaitingProvision struct {

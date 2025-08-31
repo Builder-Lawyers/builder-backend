@@ -17,33 +17,17 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./pgdata:/var/lib/postgresql/users:rw
       - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
-  builder:
+  backend:
     build:
-      context: .
-      dockerfile: ./builder/Dockerfile
+      dockerfile: Dockerfile
     restart: on-failure
     env_file:
-      - ./builder/.env.prod
+      - .env.prod
     command: [ "main" ]
     ports:
       - "3000:3000"
     depends_on:
       postgres:
-        condition: service_started
-
-  templater:
-    build:
-      context: .
-      dockerfile: ./templater/Dockerfile
-    restart: on-failure
-    env_file:
-      - ./templater/.env.prod
-    command: [ "main" ]
-    ports:
-      - "3001:3001"
-    depends_on:
-      postgres:
-        condition: service_started
+        condition: service_healthy

@@ -75,6 +75,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: Get info about an existing site
+      operationId: getSite
+      tags:
+        - Sites
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      responses:
+        '200':
+          description: Site info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetSiteResponse'
+        '400':
+          description: Invalid request or path parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /ai/enrich:
     post:
       summary: Enrich some user provided info using AI
@@ -92,30 +123,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EnrichContentResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /provision/healthcheck:
-    post:
-      summary: Run healthchecks on site's provision
-      description: Returns whether a site is healthy or down
-      operationId: provisionHealthcheck
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HealthcheckProvisionRequest'
-      responses:
-        '200':
-          description: Domain availability info
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthcheckProvisionResponse'
         '500':
           description: Internal server error
           content:
@@ -244,24 +251,18 @@ components:
       required:
         - domain
 
-    HealthcheckProvisionRequest:
+    GetSiteResponse:
       type: object
       properties:
-        siteID:
-          type: integer
-          format: uint64
-          example: 101
-      required:
-        - siteID
-
-    HealthcheckProvisionResponse:
-      type: object
-      properties:
-        status:
+        healthCheckStatus:
           type: string
           enum: [Healthy, Unhealthy, NotProvisioned]
+        createdAt:
+          type: string
+          format: string
       required:
-        - status
+        - healthCheckStatus
+        - createdAt
 
     DomainAvailability:
       type: object
