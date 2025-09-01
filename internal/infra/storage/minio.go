@@ -99,7 +99,7 @@ func (s *Storage) DownloadFiles(keys []string, destination, pathAfter string) er
 		if err != nil {
 			return fmt.Errorf("error downloading key %s: %w", key, err)
 		}
-		destKey := strings.TrimPrefix(key, pathAfter+"/")
+		destKey := strings.TrimPrefix(key, pathAfter)
 		//slog.Info("got object from s3, uploading to local",
 		//	"key", key,
 		//	"destination", filepath.Join(destination, destKey),

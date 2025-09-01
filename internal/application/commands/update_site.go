@@ -94,9 +94,6 @@ func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, 
 			if err != nil {
 				return 0, err
 			}
-			if err = tx.Commit(context.Background()); err != nil {
-				return 0, err
-			}
 		}
 		if err = uow.Commit(); err != nil {
 			return 0, err

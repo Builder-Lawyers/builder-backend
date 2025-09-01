@@ -263,12 +263,12 @@ func (c *ProvisionSite) downloadMissingRootFiles(path, bucketPath string) error 
 		filesToDownload := make([]string, 0)
 		for _, file := range files {
 			// everything under templates/
-			if strings.Contains(file, "templates/") {
+			if strings.Contains(file, "/templates/") || file == bucketPath {
 				continue
 			}
 			filesToDownload = append(filesToDownload, file)
 		}
-		err = c.Storage.DownloadFiles(filesToDownload, path, c.cfg.BucketPath)
+		err = c.Storage.DownloadFiles(filesToDownload, path, bucketPath)
 		if err != nil {
 			slog.Error("error downloading template's sources %v", "template", err)
 			return err
@@ -284,7 +284,7 @@ func (c *ProvisionSite) downloadMissingTemplateFiles(path, bucketPath string) er
 		return err
 	}
 	if len(dir) == 0 {
-		slog.Info("directory %v is empty, downloading sources", "downloadTemplate", path)
+		slog.Info("directory is empty, downloading sources", "dir", path)
 		files := c.Storage.ListFiles(100, &s3.ListObjectsV2Input{
 			Prefix: aws.String(bucketPath),
 		})

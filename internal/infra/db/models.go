@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/mail"
 	"github.com/google/uuid"
 )
 
@@ -48,4 +49,19 @@ type Provision struct {
 	CloudfrontID   string                 `db:"cloudfront_id"`
 	CreatedAt      time.Time              `db:"created_at"`
 	UpdatedAt      time.Time              `db:"updated_at"`
+}
+
+type Mail struct {
+	ID         uint64        `db:"id"`
+	MailType   mail.MailType `db:"type"`
+	Recipients string        `db:"recipients"`
+	Subject    string        `db:"subject"`
+	Content    string        `db:"content"`
+	SentAt     time.Time     `db:"sent_at"`
+}
+
+type MailTemplates struct {
+	ID      uint64 `db:"id"`
+	Type    string `db:"type"`
+	Content string `db:"content"`
 }

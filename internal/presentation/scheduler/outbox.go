@@ -132,6 +132,13 @@ func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
 			status = 2
 		}
 		break
+	case events.SendMail{}.GetType():
+		event := db.MapOutboxModelToSendMail(outbox)
+		uow, err = o.handlers.SendMail.Handle(event)
+		if err != nil {
+			status = 2
+		}
+		break
 	}
 
 	if uow == nil {

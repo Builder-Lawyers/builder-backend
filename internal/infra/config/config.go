@@ -30,7 +30,7 @@ func NewProvisionConfig() *ProvisionConfig {
 	}
 	slog.Info("Current working directory: %v", "config", wd)
 	parent := filepath.Dir(wd)
-	buildFolder := filepath.Join(parent, "templates-monorepo2")
+	buildFolder := filepath.Join(parent, "templates-repo")
 	templatesFolder := filepath.Join(buildFolder, "templates")
 	return &ProvisionConfig{
 		env.GetEnv("P_BUILD_FOLDER", buildFolder),

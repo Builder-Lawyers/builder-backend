@@ -126,7 +126,7 @@ func (d *DNSProvisioner) WaitAndGetDistribution(ctx context.Context, distributio
 		}
 
 		status := *resp.Distribution.Status
-		slog.Info("Waiting for deployment, current status:", status)
+		slog.Info("Waiting for deployment", "status", status)
 
 		if status == "Deployed" {
 			slog.Info("Distribution is deployed!")

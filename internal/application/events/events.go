@@ -17,7 +17,7 @@ type SiteAwaitingProvision struct {
 	CreatedAt    time.Time
 }
 
-func (s SiteAwaitingProvision) GetType() string {
+func (e SiteAwaitingProvision) GetType() string {
 	return "SiteAwaitingProvision"
 }
 
@@ -29,7 +29,7 @@ type ProvisionCDN struct {
 	CreatedAt      time.Time
 }
 
-func (s ProvisionCDN) GetType() string {
+func (e ProvisionCDN) GetType() string {
 	return "ProvisionCDN"
 }
 
@@ -41,6 +41,16 @@ type FinalizeProvision struct {
 	CreatedAt      time.Time
 }
 
-func (s FinalizeProvision) GetType() string {
+func (e FinalizeProvision) GetType() string {
 	return "FinalizeProvision"
+}
+
+type SendMail struct {
+	UserID  string
+	Subject string
+	Data    interface{}
+}
+
+func (e SendMail) GetType() string {
+	return "SendMail"
 }

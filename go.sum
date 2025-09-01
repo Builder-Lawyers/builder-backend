@@ -6,10 +6,16 @@ github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 h1:L/gRVlceqvL25
 github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250831140519-d77a16a69c75 h1:SR/sxVCU8FDbuU86iD4+NVNzYZ4mvSgNjr0jc+6T0dU=
 github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250831140519-d77a16a69c75/go.mod h1:6lM3UD+sRo4O++eWnZEoW5BX8bVsBFLuiKsldwsnIf0=
+github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250831173650-8f2fe869ec6a h1:mdRFTZhfu5IsZN5kNgThuoCsNlik2SMRJoZZceMByzY=
+github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250831173650-8f2fe869ec6a/go.mod h1:6lM3UD+sRo4O++eWnZEoW5BX8bVsBFLuiKsldwsnIf0=
 github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250831140519-d77a16a69c75 h1:NGgLCRbz1Yqwoyfkshr3bZS95kObujCOjL5wLb8x8fw=
 github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250831140519-d77a16a69c75/go.mod h1:c0cOv/37KH99xg2k9QUcq7M51LtAEId/o4sfx3Gfikw=
+github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250831173650-8f2fe869ec6a h1:SBedUi5jVaNR6JyF6kEiZgGzWPr6gt5eESBAoi92a3s=
+github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250831173650-8f2fe869ec6a/go.mod h1:c0cOv/37KH99xg2k9QUcq7M51LtAEId/o4sfx3Gfikw=
 github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250831140519-d77a16a69c75 h1:vrs76+qXzYlBkDiUbxkI324lLmjbn1NP//nq64ysXM4=
 github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250831140519-d77a16a69c75/go.mod h1:Y7NU3tM0O5rvWIbous0gQgQuzZtS+8ouZKwWXTFQoi8=
+github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250831173650-8f2fe869ec6a h1:m3+zK3QG702msIjdu3r3Pe8L0G+y55qLGJ4o26Vt2xo=
+github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250831173650-8f2fe869ec6a/go.mod h1:Y7NU3tM0O5rvWIbous0gQgQuzZtS+8ouZKwWXTFQoi8=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/RaveNoX/go-jsoncommentstrip v1.0.0/go.mod h1:78ihd09MekBnJnxpICcwzCMzGrKSKYe4AqU6PDYYpjk=

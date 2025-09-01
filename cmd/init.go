@@ -18,6 +18,7 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db/repo"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/mail"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/storage"
 	"github.com/Builder-Lawyers/builder-backend/internal/presentation/rest"
 	"github.com/Builder-Lawyers/builder-backend/internal/presentation/scheduler"
@@ -46,6 +47,8 @@ func Init() {
 	// Configs
 	provisionConfig := config.NewProvisionConfig()
 	domainContact := dns.NewDomainContact()
+	mailConfig := mail.NewMailConfig()
+	mailServer := mail.NewMailServer(mailConfig)
 
 	// AWS
 	cfg, err := awsConfig.LoadDefaultConfig(context.TODO())
@@ -63,8 +66,9 @@ func Init() {
 		GetSite:           query.NewGetSite(provisionConfig, uowFactory, provisionRepo, dnsProvisioner),
 		ProvisionSite:     commands.NewProvisionSite(provisionConfig, uowFactory, eventRepo, provisionRepo, s3, templateBuild, dnsProvisioner, acmCerts),
 		ProvisionCDN:      commands.NewProvisionCDN(provisionConfig, uowFactory, provisionRepo, dnsProvisioner),
-		FinalizeProvision: commands.NewFinalizeProvision(provisionConfig, uowFactory, dnsProvisioner),
+		FinalizeProvision: commands.NewFinalizeProvision(provisionConfig, uowFactory, dnsProvisioner, eventRepo),
 		CheckDomain:       query.NewCheckDomain(dnsProvisioner),
+		SendMail:          commands.NewSendMail(mailServer, uowFactory),
 	}
 	handler := rest.NewServer(handlers)
 	app := fiber.New(fiber.Config{

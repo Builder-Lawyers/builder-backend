@@ -12,5 +12,16 @@ RUN go env -w CGO_ENABLED=0
 RUN go build -o main ./main.go
 
 FROM ubuntu:20.04
-RUN apt-get update && apt-get install -y curl
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    gnupg \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g pnpm
+
+RUN node -v && npm -v && pnpm -v
 COPY --from=build /app/main /usr/local/bin/

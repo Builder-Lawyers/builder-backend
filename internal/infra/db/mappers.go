@@ -2,7 +2,7 @@ package db
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
 	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
@@ -31,7 +31,7 @@ func MapUserModelToEntity(user User) entity.User {
 func RawMessageToMap(raw json.RawMessage) map[string]interface{} {
 	var result map[string]interface{}
 	if err := json.Unmarshal(raw, &result); err != nil {
-		log.Println(err)
+		slog.Error("error unmarshaling event", "err", err)
 	}
 	return result
 }
@@ -46,7 +46,7 @@ func MapOutboxModelToSiteAwaitingProvisionEvent(outbox Outbox) events.SiteAwaiti
 	}
 
 	if err := json.Unmarshal(outbox.Payload, &payload); err != nil {
-		log.Println(err)
+		slog.Error("error unmarshaling event", "err", err)
 		return events.SiteAwaitingProvision{}
 	}
 
@@ -70,7 +70,7 @@ func MapOutboxModelToProvisionCDN(outbox Outbox) events.ProvisionCDN {
 	}
 
 	if err := json.Unmarshal(outbox.Payload, &payload); err != nil {
-		log.Println(err)
+		slog.Error("error unmarshaling event", "err", err)
 		return events.ProvisionCDN{}
 	}
 
@@ -92,7 +92,7 @@ func MapOutboxModelToFinalizeProvision(outbox Outbox) events.FinalizeProvision {
 	}
 
 	if err := json.Unmarshal(outbox.Payload, &payload); err != nil {
-		log.Println(err)
+		slog.Error("error unmarshaling event", "err", err)
 		return events.FinalizeProvision{}
 	}
 
@@ -105,10 +105,29 @@ func MapOutboxModelToFinalizeProvision(outbox Outbox) events.FinalizeProvision {
 	}
 }
 
+func MapOutboxModelToSendMail(outbox Outbox) events.SendMail {
+	var payload struct {
+		UserID  string      `json:"userID"`
+		Subject string      `json:"subject"`
+		Data    interface{} `json:"data"`
+	}
+
+	if err := json.Unmarshal(outbox.Payload, &payload); err != nil {
+		slog.Error("error unmarshaling event", "err", err)
+		return events.SendMail{}
+	}
+
+	return events.SendMail{
+		UserID:  payload.UserID,
+		Subject: payload.Subject,
+		Data:    payload.Data,
+	}
+}
+
 func MapToRawMessage(data map[string]interface{}) json.RawMessage {
 	bytes, err := json.Marshal(data)
 	if err != nil {
-		log.Println(err)
+		slog.Error("error unmarshaling event", "err", err)
 		return nil
 	}
 	return json.RawMessage(bytes)

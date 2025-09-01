@@ -3,9 +3,9 @@ module github.com/Builder-Lawyers/builder-backend
 go 1.24.5
 
 require (
-	github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250831140519-d77a16a69c75
-	github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250831140519-d77a16a69c75
-	github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250831140519-d77a16a69c75
+	github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250831173650-8f2fe869ec6a
+	github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250831173650-8f2fe869ec6a
+	github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250831173650-8f2fe869ec6a
 	github.com/aws/aws-sdk-go-v2 v1.38.3
 	github.com/aws/aws-sdk-go-v2/config v1.27.5
 	github.com/aws/aws-sdk-go-v2/service/acm v1.37.2
