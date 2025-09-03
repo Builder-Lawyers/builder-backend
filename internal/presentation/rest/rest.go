@@ -95,3 +95,21 @@ func (s Server) GetSite(c *fiber.Ctx, id uint64) error {
 
 	return c.Status(fiber.StatusOK).JSON(resp)
 }
+
+func (s Server) GetToken(c *fiber.Ctx) error {
+	var req dto.AuthCode
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	accessToken, err := s.handlers.Auth.Callback(req.Code)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	resp := dto.AccessToken{
+		Token: accessToken,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(resp)
+}

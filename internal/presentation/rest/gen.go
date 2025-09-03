@@ -15,6 +15,9 @@ type ServerInterface interface {
 	// Enrich some user provided info using AI
 	// (POST /ai/enrich)
 	EnrichContent(c *fiber.Ctx) error
+	// Gets an access token from oidc
+	// (POST /auth/token)
+	GetToken(c *fiber.Ctx) error
 	// Checks domain availability
 	// (POST /domain/check)
 	CheckDomain(c *fiber.Ctx) error
@@ -40,6 +43,12 @@ type MiddlewareFunc fiber.Handler
 func (siw *ServerInterfaceWrapper) EnrichContent(c *fiber.Ctx) error {
 
 	return siw.Handler.EnrichContent(c)
+}
+
+// GetToken operation middleware
+func (siw *ServerInterfaceWrapper) GetToken(c *fiber.Ctx) error {
+
+	return siw.Handler.GetToken(c)
 }
 
 // CheckDomain operation middleware
@@ -108,6 +117,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	}
 
 	router.Post(options.BaseURL+"/ai/enrich", wrapper.EnrichContent)
+
+	router.Post(options.BaseURL+"/auth/token", wrapper.GetToken)
 
 	router.Post(options.BaseURL+"/domain/check", wrapper.CheckDomain)
 

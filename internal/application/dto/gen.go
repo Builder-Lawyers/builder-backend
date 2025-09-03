@@ -28,6 +28,16 @@ const (
 	InCreation        UpdateSiteRequestNewStatus = "InCreation"
 )
 
+// AccessToken defines model for AccessToken.
+type AccessToken struct {
+	Token string `json:"token"`
+}
+
+// AuthCode defines model for AuthCode.
+type AuthCode struct {
+	Code string `json:"code"`
+}
+
 // CheckDomainParams defines model for CheckDomainParams.
 type CheckDomainParams struct {
 	Domain string `json:"domain"`
@@ -97,6 +107,9 @@ type UpdateSiteResponse struct {
 
 // EnrichContentJSONRequestBody defines body for EnrichContent for application/json ContentType.
 type EnrichContentJSONRequestBody = EnrichContentRequest
+
+// GetTokenJSONRequestBody defines body for GetToken for application/json ContentType.
+type GetTokenJSONRequestBody = AuthCode
 
 // CheckDomainJSONRequestBody defines body for CheckDomain for application/json ContentType.
 type CheckDomainJSONRequestBody = CheckDomainParams

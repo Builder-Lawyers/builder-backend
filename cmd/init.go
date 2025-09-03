@@ -12,6 +12,7 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/application"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/commands"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/query"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/build"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/certs"
 	ai "github.com/Builder-Lawyers/builder-backend/internal/infra/client/openai"
@@ -25,6 +26,8 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/pkg/db"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -48,6 +51,12 @@ func Init() {
 	provisionConfig := config.NewProvisionConfig()
 	domainContact := dns.NewDomainContact()
 	mailConfig := mail.NewMailConfig()
+	oidcConfig := auth.NewOIDCConfig()
+	// solving problem of slight clock mismatch for jwt verifications
+	now := time.Now()
+	jwt.TimeFunc = func() time.Time {
+		return now.Add(60 * time.Second)
+	}
 	mailServer := mail.NewMailServer(mailConfig)
 
 	// AWS
@@ -67,6 +76,7 @@ func Init() {
 		ProvisionSite:     commands.NewProvisionSite(provisionConfig, uowFactory, eventRepo, provisionRepo, s3, templateBuild, dnsProvisioner, acmCerts),
 		ProvisionCDN:      commands.NewProvisionCDN(provisionConfig, uowFactory, provisionRepo, dnsProvisioner),
 		FinalizeProvision: commands.NewFinalizeProvision(provisionConfig, uowFactory, dnsProvisioner, eventRepo),
+		Auth:              commands.NewAuth(uowFactory, oidcConfig),
 		CheckDomain:       query.NewCheckDomain(dnsProvisioner),
 		SendMail:          commands.NewSendMail(mailServer, uowFactory),
 	}
@@ -74,13 +84,19 @@ func Init() {
 	app := fiber.New(fiber.Config{
 		IdleTimeout: 5 * time.Second,
 	})
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "http://localhost:3000",
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowCredentials: true,
+	}))
 	rest.RegisterHandlers(app, handler)
 
 	outboxPoller := scheduler.NewOutboxPoller(handlers, uowFactory, 5, 5)
 	go outboxPoller.Start()
 
 	go func() {
-		if err := app.Listen(":3000"); err != nil {
+		if err := app.Listen(":8080"); err != nil {
 			log.Panic(err)
 		}
 	}()

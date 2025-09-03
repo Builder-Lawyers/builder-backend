@@ -153,6 +153,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /auth/token:
+    post:
+      summary: Gets an access token from oidc
+      description: Returns access token for a specific code using authorization flow
+      operationId: getToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthCode'
+      responses:
+        '200':
+          description: Domain availability info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
@@ -272,6 +302,24 @@ components:
           example: true
       required:
         - available
+
+    AuthCode:
+      type: object
+      properties:
+        code:
+          type: string
+          example: 3ad6c7c6-c119-4759-9f04-4e985a6a11e7
+      required:
+        - code
+
+    AccessToken:
+      type: object
+      properties:
+        token:
+          type: string
+          example: 3ad6c7c6-c119-4759-9f04-4e985a6a11e7
+      required:
+        - token
 
     ErrorResponse:
       type: object
