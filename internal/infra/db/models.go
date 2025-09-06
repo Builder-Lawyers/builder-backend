@@ -4,19 +4,21 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/mail"
 	"github.com/google/uuid"
 )
 
 type Site struct {
-	ID         uint64          `db:"id"`
-	TemplateID uint8           `db:"template_id"`
-	CreatorID  uuid.UUID       `db:"creator_id"`
-	Status     string          `db:"status"`
-	Fields     json.RawMessage `db:"fields"`
-	CreatedAt  time.Time       `db:"created_at"`
-	UpdatedAt  time.Time       `db:"updated_at,omitempty"`
+	ID             uint64          `db:"id"`
+	TemplateID     uint8           `db:"template_id"`
+	CreatorID      uuid.UUID       `db:"creator_id"`
+	PlanID         uint8           `db:"plan_id"`
+	SubscriptionID string          `db:"subscription_id"`
+	Status         consts.Status   `db:"status"`
+	Fields         json.RawMessage `db:"fields"`
+	CreatedAt      time.Time       `db:"created_at"`
+	UpdatedAt      time.Time       `db:"updated_at,omitempty"`
 }
 
 type User struct {
@@ -64,4 +66,11 @@ type MailTemplates struct {
 	ID      uint64 `db:"id"`
 	Type    string `db:"type"`
 	Content string `db:"content"`
+}
+
+type PaymentPlan struct {
+	ID          uint8  `db:"id"`
+	StripeID    string `db:"stripe_id"`
+	Description string `db:"description"`
+	Price       int    `db:"price"`
 }

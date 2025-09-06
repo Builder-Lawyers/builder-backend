@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
-	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db/repo"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"

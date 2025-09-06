@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
+	"github.com/Builder-Lawyers/builder-backend/pkg/env"
 	"github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
 	"github.com/jackc/pgx/v5"
 )
@@ -18,12 +20,37 @@ import (
 type OutboxPoller struct {
 	handlers   *application.Handlers
 	uowFactory *dbs.UOWFactory
-	limit      uint8
-	interval   uint16
+	cfg        *OutboxConfig
 }
 
-func NewOutboxPoller(handlers *application.Handlers, uowFactory *dbs.UOWFactory, limit uint8, interval uint16) *OutboxPoller {
-	return &OutboxPoller{handlers: handlers, uowFactory: uowFactory, limit: limit, interval: interval}
+type OutboxConfig struct {
+	limit    uint8
+	interval uint16
+}
+
+func NewOutboxConfig() *OutboxConfig {
+	var limit int
+	var interval int
+
+	limitString := env.GetEnv("SCHEDULER_LIMIT", "5")
+	limit, err := strconv.Atoi(limitString)
+	if err != nil {
+		limit = 5
+	}
+
+	intervalString := env.GetEnv("SCHEDULER_INTERVAL", "5")
+	interval, err = strconv.Atoi(intervalString)
+	if err != nil {
+		interval = 5
+	}
+	return &OutboxConfig{
+		limit:    uint8(limit),
+		interval: uint16(interval),
+	}
+}
+
+func NewOutboxPoller(handlers *application.Handlers, uowFactory *dbs.UOWFactory, cfg *OutboxConfig) *OutboxPoller {
+	return &OutboxPoller{handlers: handlers, uowFactory: uowFactory, cfg: cfg}
 }
 
 func (o *OutboxPoller) Start() {
@@ -32,12 +59,12 @@ func (o *OutboxPoller) Start() {
 	for {
 		o.pollTable()
 		// wait after poll finishes
-		time.Sleep(time.Duration(o.interval) * time.Second)
+		time.Sleep(time.Duration(o.cfg.interval) * time.Second)
 	}
 }
 
 func (o *OutboxPoller) StartParallel() {
-	ticker := time.NewTicker(time.Duration(o.interval) * time.Second)
+	ticker := time.NewTicker(time.Duration(o.cfg.interval) * time.Second)
 	defer ticker.Stop()
 
 	slog.Info("Starting outbox poller...")
@@ -62,7 +89,7 @@ func (o *OutboxPoller) pollTable() {
 	defer cancel()
 
 	query := "SELECT * FROM builder.outbox WHERE status = 0 ORDER BY created_at FOR NO KEY UPDATE LIMIT $1"
-	rows, err := tx.Query(ctx, query, o.limit)
+	rows, err := tx.Query(ctx, query, o.cfg.limit)
 	if err != nil {
 		slog.Error("error in poller", "err", err)
 		return

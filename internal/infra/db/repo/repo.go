@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/interfaces"
-	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	shared "github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
 	"github.com/jackc/pgx/v5"

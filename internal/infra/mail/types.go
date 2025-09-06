@@ -5,6 +5,7 @@ type MailType string
 const (
 	SiteCreated         MailType = "SiteCreated"
 	RegistrationSuccess MailType = "RegistrationSuccess"
+	FreeTrialEnds       MailType = "FreeTrialEnds"
 )
 
 type MailData interface {
@@ -19,4 +20,13 @@ type SiteCreatedData struct {
 
 func (s SiteCreatedData) GetMailType() MailType {
 	return SiteCreated
+}
+
+type FreeTrialEndsData struct {
+	DaysUntilEnd int
+	PaymentURL   string
+}
+
+func (s FreeTrialEndsData) GetMailType() MailType {
+	return FreeTrialEnds
 }

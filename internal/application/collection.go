@@ -15,6 +15,7 @@ type Handlers struct {
 	*commands.FinalizeProvision
 	*commands.SendMail
 	*commands.Auth
+	*commands.Payment
 	*query.GetSite
 	*query.CheckDomain
 }

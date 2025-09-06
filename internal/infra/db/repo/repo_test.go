@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"github.com/jackc/pgx/v5/pgxpool"

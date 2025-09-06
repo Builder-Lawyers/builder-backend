@@ -6,9 +6,10 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/interfaces"
-	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 )
@@ -22,8 +23,8 @@ func NewUpdateSite(factory *dbs.UOWFactory, eventRepo interfaces.EventRepo) *Upd
 	return &UpdateSite{UOWFactory: factory, EventRepo: eventRepo}
 }
 
-func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, error) {
-	var siteModel db.Site
+func (c *UpdateSite) Execute(siteID uint64, req *dto.UpdateSiteRequest, identity *auth.Identity) (uint64, error) {
+	var site db.Site
 	var creator db.User
 
 	uow := c.UOWFactory.GetUoW()
@@ -32,15 +33,15 @@ func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, 
 		return 0, err
 	}
 	err = tx.QueryRow(context.Background(), "SELECT creator_id, template_id, status, fields from builder.sites WHERE id = $1", siteID).Scan(
-		&siteModel.CreatorID,
-		&siteModel.TemplateID,
-		&siteModel.Status,
-		&siteModel.Fields,
+		&site.CreatorID,
+		&site.TemplateID,
+		&site.Status,
+		&site.Fields,
 	)
 	if err != nil {
 		return 0, err
 	}
-	err = tx.QueryRow(context.Background(), "SELECT id, first_name, second_name, email, created_at from builder.users WHERE id = $1", siteModel.CreatorID).Scan(
+	err = tx.QueryRow(context.Background(), "SELECT id, first_name, second_name, email, created_at from builder.users WHERE id = $1", site.CreatorID).Scan(
 		&creator.ID,
 		&creator.FirstName,
 		&creator.SecondName,
@@ -50,12 +51,11 @@ func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, 
 	if err != nil {
 		return 0, err
 	}
-	site := db.MapSiteModelToEntity(siteModel, creator)
 
 	if req.NewStatus != nil {
 		// Created - request came from templater, site is ready
 		// AwaitingProvision - from frontend, all fields are filled in by user
-		site.UpdateState(consts.Status(*req.NewStatus))
+		site.Status = consts.Status(*req.NewStatus)
 		_, err = tx.Exec(context.Background(), "UPDATE builder.sites SET status = $1, updated_at = $2 WHERE id = $3", site.Status, time.Now(), siteID)
 		if err != nil {
 			return 0, err
@@ -68,7 +68,7 @@ func (c *UpdateSite) Execute(siteID uint64, req dto.UpdateSiteRequest) (uint64, 
 			if err != nil {
 				return 0, err
 			}
-			fields := db.RawMessageToMap(siteModel.Fields)
+			fields := db.RawMessageToMap(site.Fields)
 			if req.Fields != nil {
 				fields = *req.Fields
 			}

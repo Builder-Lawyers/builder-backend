@@ -43,10 +43,22 @@ type CheckDomainParams struct {
 	Domain string `json:"domain"`
 }
 
+// CreatePaymentRequest defines model for CreatePaymentRequest.
+type CreatePaymentRequest struct {
+	PlanID uint8 `json:"planID"`
+	SiteID int64 `json:"siteID"`
+}
+
+// CreatePaymentResponse defines model for CreatePaymentResponse.
+type CreatePaymentResponse struct {
+	ClientSecret string `json:"clientSecret"`
+}
+
 // CreateSiteRequest defines model for CreateSiteRequest.
 type CreateSiteRequest struct {
 	// Fields json object with all widgets and fields of a site
 	Fields     *map[string]interface{} `json:"fields,omitempty"`
+	PlanID     uint8                   `json:"planID"`
 	TemplateID uint8                   `json:"templateID"`
 	UserID     openapi_types.UUID      `json:"userID"`
 }
@@ -85,6 +97,17 @@ type GetSiteResponse struct {
 // GetSiteResponseHealthCheckStatus defines model for GetSiteResponse.HealthCheckStatus.
 type GetSiteResponseHealthCheckStatus string
 
+// PaymentStatusResponse defines model for PaymentStatusResponse.
+type PaymentStatusResponse struct {
+	PaymentIntentID     string `json:"paymentIntentID"`
+	PaymentIntentStatus string `json:"paymentIntentStatus"`
+	PaymentStatus       string `json:"paymentStatus"`
+	Status              string `json:"status"`
+}
+
+// StripeWebhookRequest defines model for StripeWebhookRequest.
+type StripeWebhookRequest map[string]interface{}
+
 // UpdateSiteRequest defines model for UpdateSiteRequest.
 type UpdateSiteRequest struct {
 	Domain     *string                      `json:"domain,omitempty"`
@@ -105,6 +128,15 @@ type UpdateSiteResponse struct {
 	SiteID uint64 `json:"siteID"`
 }
 
+// BadRequestError defines model for BadRequestError.
+type BadRequestError = ErrorResponse
+
+// InternalServerError defines model for InternalServerError.
+type InternalServerError = ErrorResponse
+
+// UnauthorizedError defines model for UnauthorizedError.
+type UnauthorizedError = ErrorResponse
+
 // EnrichContentJSONRequestBody defines body for EnrichContent for application/json ContentType.
 type EnrichContentJSONRequestBody = EnrichContentRequest
 
@@ -113,6 +145,12 @@ type GetTokenJSONRequestBody = AuthCode
 
 // CheckDomainJSONRequestBody defines body for CheckDomain for application/json ContentType.
 type CheckDomainJSONRequestBody = CheckDomainParams
+
+// CreatePaymentJSONRequestBody defines body for CreatePayment for application/json ContentType.
+type CreatePaymentJSONRequestBody = CreatePaymentRequest
+
+// HandleEventJSONRequestBody defines body for HandleEvent for application/json ContentType.
+type HandleEventJSONRequestBody = StripeWebhookRequest
 
 // CreateSiteJSONRequestBody defines body for CreateSite for application/json ContentType.
 type CreateSiteJSONRequestBody = CreateSiteRequest

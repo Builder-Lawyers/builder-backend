@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS builder.sites (
     id BIGINT GENERATED ALWAYS AS IDENTITY,
     template_id SMALLINT NOT NULL,
     creator_id UUID NOT NULL,
+    plan_id SMALLINT NOT NULL,
+    subscription_id VARCHAR(60),
     status VARCHAR(30) NOT NULL,
     fields JSONB,
     created_at TIMESTAMPTZ NOT NULL,
@@ -13,6 +15,7 @@ CREATE TABLE IF NOT EXISTS builder.sites (
 
 CREATE TABLE IF NOT EXISTS builder.users (
     id UUID PRIMARY KEY,
+    stripe_id VARCHAR(60),
     first_name varchar(100) NOT NULL,
     second_name varchar(100) NOT NULL,
     email varchar(100) NOT NULL,
@@ -58,6 +61,15 @@ CREATE TABLE IF NOT EXISTS builder.mail_templates (
     content TEXT
 );
 
-insert into builder.users (id, first_name, second_name, email, created_at) values ('5a9bf3fa-d99a-4ccc-b64f-b2ddf20ee5e5', 'John', 'Doe', 'example@gmail.com', CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS builder.payment_plans (
+    id SMALLINT GENERATED ALWAYS AS IDENTITY,
+    stripe_id VARCHAR(60) NOT NULL UNIQUE,
+    description VARCHAR(255) NOT NULL,
+    price INTEGER NOT NULL
+);
+
+insert into builder.users (id, first_name, second_name, email, created_at) values ('043804b8-5071-7049-7034-8853ffd88039', 'John', 'Doe', 'example@gmail.com', CURRENT_TIMESTAMP);
 insert into builder.templates(id, name) VALUES (1, 'template-v1');
 insert into builder.templates(id, name) VALUES (2, 'template-v2');
+insert into builder.payment_plans(stripe_id, description, price) VALUES ('price_1S2g3TBUqUlKX6nYFU5mN5HW', 'Simple site with no separate domain', 800);
+insert into builder.payment_plans(stripe_id, description, price) VALUES ('price_1S3d1JBUqUlKX6nYewiReS7I', 'Simple site with separate domain', 1300);

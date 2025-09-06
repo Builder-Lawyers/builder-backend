@@ -1,8 +1,7 @@
 package dto
 
 import (
-	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
-	"github.com/Builder-Lawyers/builder-backend/internal/infra/mail"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 )
 
 type ProvisionSiteRequest struct {
@@ -11,10 +10,4 @@ type ProvisionSiteRequest struct {
 	TemplateName string
 	Domain       string
 	Fields       map[string]interface{}
-}
-
-type CreateMailDTO struct {
-	UserID  string
-	Subject string
-	Data    mail.MailData
 }

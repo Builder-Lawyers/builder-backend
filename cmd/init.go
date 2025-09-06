@@ -52,6 +52,8 @@ func Init() {
 	domainContact := dns.NewDomainContact()
 	mailConfig := mail.NewMailConfig()
 	oidcConfig := auth.NewOIDCConfig()
+	paymentConfig := commands.NewPaymentConfig()
+	outboxConfig := scheduler.NewOutboxConfig()
 	// solving problem of slight clock mismatch for jwt verifications
 	now := time.Now()
 	jwt.TimeFunc = func() time.Time {
@@ -79,6 +81,7 @@ func Init() {
 		Auth:              commands.NewAuth(uowFactory, oidcConfig),
 		CheckDomain:       query.NewCheckDomain(dnsProvisioner),
 		SendMail:          commands.NewSendMail(mailServer, uowFactory),
+		Payment:           commands.NewPayment(uowFactory, paymentConfig),
 	}
 	handler := rest.NewServer(handlers)
 	app := fiber.New(fiber.Config{
@@ -92,7 +95,7 @@ func Init() {
 	}))
 	rest.RegisterHandlers(app, handler)
 
-	outboxPoller := scheduler.NewOutboxPoller(handlers, uowFactory, 5, 5)
+	outboxPoller := scheduler.NewOutboxPoller(handlers, uowFactory, outboxConfig)
 	go outboxPoller.Start()
 
 	go func() {

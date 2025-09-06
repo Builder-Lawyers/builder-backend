@@ -21,6 +21,15 @@ type ServerInterface interface {
 	// Checks domain availability
 	// (POST /domain/check)
 	CheckDomain(c *fiber.Ctx) error
+	// Gets a client secret to create a payment
+	// (POST /payments)
+	CreatePayment(c *fiber.Ctx) error
+	// Listens for webhook requests from stripe
+	// (POST /payments/webhook)
+	HandleEvent(c *fiber.Ctx) error
+	// Gets a payment checkout session info
+	// (GET /payments/{id})
+	GetPaymentStatus(c *fiber.Ctx, id string) error
 	// Create a new site
 	// (POST /sites)
 	CreateSite(c *fiber.Ctx) error
@@ -55,6 +64,34 @@ func (siw *ServerInterfaceWrapper) GetToken(c *fiber.Ctx) error {
 func (siw *ServerInterfaceWrapper) CheckDomain(c *fiber.Ctx) error {
 
 	return siw.Handler.CheckDomain(c)
+}
+
+// CreatePayment operation middleware
+func (siw *ServerInterfaceWrapper) CreatePayment(c *fiber.Ctx) error {
+
+	return siw.Handler.CreatePayment(c)
+}
+
+// HandleEvent operation middleware
+func (siw *ServerInterfaceWrapper) HandleEvent(c *fiber.Ctx) error {
+
+	return siw.Handler.HandleEvent(c)
+}
+
+// GetPaymentStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetPaymentStatus(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Params("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter id: %w", err).Error())
+	}
+
+	return siw.Handler.GetPaymentStatus(c, id)
 }
 
 // CreateSite operation middleware
@@ -121,6 +158,12 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Post(options.BaseURL+"/auth/token", wrapper.GetToken)
 
 	router.Post(options.BaseURL+"/domain/check", wrapper.CheckDomain)
+
+	router.Post(options.BaseURL+"/payments", wrapper.CreatePayment)
+
+	router.Post(options.BaseURL+"/payments/webhook", wrapper.HandleEvent)
+
+	router.Get(options.BaseURL+"/payments/:id", wrapper.GetPaymentStatus)
 
 	router.Post(options.BaseURL+"/sites", wrapper.CreateSite)
 

@@ -15,7 +15,7 @@ func NewEnrichContent(client *ai.OpenAIClient) *EnrichContent {
 	}
 }
 
-func (c EnrichContent) Execute(req dto.EnrichContentRequest) (string, error) {
+func (c EnrichContent) Execute(req *dto.EnrichContentRequest) (string, error) {
 	enriched, err := c.aiClient.EnrichContent(req.Content)
 	if err != nil {
 		return "", err

@@ -25,17 +25,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreateSiteResponse'
         '400':
-          description: Invalid request body
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/BadRequestError'
         '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/InternalServerError'
 
   /sites/{id}:
     patch:
@@ -64,17 +56,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/UpdateSiteResponse'
         '400':
-          description: Invalid request or path parameter
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/BadRequestError'
         '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/InternalServerError'
     get:
       summary: Get info about an existing site
       operationId: getSite
@@ -95,17 +79,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/GetSiteResponse'
         '400':
-          description: Invalid request or path parameter
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/BadRequestError'
         '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/InternalServerError'
+
   /ai/enrich:
     post:
       summary: Enrich some user provided info using AI
@@ -123,12 +100,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EnrichContentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
         '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/InternalServerError'
+
   /domain/check:
     post:
       summary: Checks domain availability
@@ -147,12 +123,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DomainAvailability'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
         '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/InternalServerError'
+
   /auth/token:
     post:
       summary: Gets an access token from oidc
@@ -166,23 +141,85 @@ paths:
               $ref: '#/components/schemas/AuthCode'
       responses:
         '200':
-          description: Domain availability info
+          description: Access token
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AccessToken'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
         '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/InternalServerError'
         '401':
-          description: Unauthorized
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /payments:
+    post:
+      summary: Gets a client secret to create a payment
+      description: Returns a client secret to create a checkout session for payment
+      operationId: createPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '200':
+          description: Client secret for a checkout session
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/CreatePaymentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /payments/{id}:
+    get:
+      summary: Gets a payment checkout session info
+      description: Returns a payment checkout session info
+      operationId: getPaymentStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: string
+      responses:
+        '200':
+          description: Client secret for a checkout session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /payments/webhook:
+    post:
+      summary: Listens for webhook requests from stripe
+      operationId: handleEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StripeWebhookRequest'
+      responses:
+        '200':
+          description: Client secret for a checkout session
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   schemas:
@@ -193,6 +230,9 @@ components:
           type: integer
           format: uint8
           example: 1
+        planID:
+          type: integer
+          format: uint8
         userID:
           type: string
           format: uuid
@@ -204,6 +244,7 @@ components:
       required:
         - templateID
         - userID
+        - planID
 
     CreateSiteResponse:
       type: object
@@ -321,6 +362,52 @@ components:
       required:
         - token
 
+    CreatePaymentRequest:
+      type: object
+      properties:
+        planID:
+          type: integer
+          format: uint8
+          example: 2
+        siteID:
+          type: integer
+          format: int64
+          example: 21345
+      required:
+        - planID
+        - siteID
+
+    CreatePaymentResponse:
+      type: object
+      properties:
+        clientSecret:
+          type: string
+          example: asdsad
+      required:
+        - clientSecret
+
+    PaymentStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: Success
+        paymentStatus:
+          type: string
+        paymentIntentID:
+          type: string
+        paymentIntentStatus:
+          type: string
+      required:
+        - status
+        - paymentStatus
+        - paymentIntentID
+        - paymentIntentStatus
+
+    StripeWebhookRequest:
+      type: object
+      additionalProperties: true
+
     ErrorResponse:
       type: object
       properties:
@@ -329,3 +416,22 @@ components:
           example: "invalid request"
       required:
         - error
+  responses:
+    UnauthorizedError:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadRequestError:
+      description: Invalid request body
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

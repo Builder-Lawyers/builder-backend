@@ -9,6 +9,7 @@ import (
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/interfaces"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
@@ -35,7 +36,7 @@ func NewGetSite(
 	}
 }
 
-func (c *GetSite) Query(siteIDParam uint64) (dto.GetSiteResponse, error) {
+func (c *GetSite) Query(siteIDParam uint64, identity *auth.Identity) (dto.GetSiteResponse, error) {
 	// TODO: check if user owns this site, etc...
 	siteID := strconv.FormatUint(siteIDParam, 10)
 	var site db.Site

@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
-	"github.com/Builder-Lawyers/builder-backend/internal/domain/entity"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 )
@@ -19,7 +20,7 @@ func NewCreateSite(factory *dbs.UOWFactory) *CreateSite {
 	return &CreateSite{UOWFactory: factory}
 }
 
-func (c *CreateSite) Execute(req dto.CreateSiteRequest) (uint64, error) {
+func (c *CreateSite) Execute(req *dto.CreateSiteRequest, identity *auth.Identity) (uint64, error) {
 	var creator db.User
 	uow := c.UOWFactory.GetUoW()
 
@@ -37,16 +38,24 @@ func (c *CreateSite) Execute(req dto.CreateSiteRequest) (uint64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("query failed: %v", err)
 	}
-	newSite := entity.NewSite(req.TemplateID, db.MapUserModelToEntity(creator))
+	newSite := db.Site{
+		TemplateID: req.TemplateID,
+		CreatorID:  req.UserID,
+		PlanID:     req.PlanID,
+		Status:     consts.InCreation,
+		Fields:     db.MapToRawMessage(*req.Fields),
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
 
 	err = tx.QueryRow(context.Background(),
-		"INSERT INTO builder.sites(template_id, creator_id, status, fields, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-		newSite.TemplateID, newSite.Creator.ID, newSite.Status, req.Fields, time.Now(), time.Now()).Scan(&newSite.ID)
+		"INSERT INTO builder.sites(template_id, creator_id, plan_id, status, fields, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+		newSite.TemplateID, newSite.CreatorID, newSite.PlanID, newSite.Status, newSite.Fields, newSite.CreatedAt, newSite.UpdatedAt).Scan(&newSite.ID)
 	if err != nil {
 		return 0, fmt.Errorf("insert failed: %v", err)
 	}
 
-	if err := uow.Commit(); err != nil {
+	if err = uow.Commit(); err != nil {
 		return 0, err
 	}
 	return newSite.ID, nil

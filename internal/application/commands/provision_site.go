@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/interfaces"
-	"github.com/Builder-Lawyers/builder-backend/internal/domain/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/build"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/certs"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"

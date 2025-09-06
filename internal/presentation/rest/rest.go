@@ -1,8 +1,12 @@
 package rest
 
 import (
+	"encoding/json"
+	"strings"
+
 	"github.com/Builder-Lawyers/builder-backend/internal/application"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -16,13 +20,17 @@ func NewServer(handlers *application.Handlers) *Server {
 	return &Server{handlers: handlers}
 }
 
-func (s Server) CreateSite(c *fiber.Ctx) error {
+func (s *Server) CreateSite(c *fiber.Ctx) error {
 	var req dto.CreateSiteRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	siteID, err := s.handlers.CreateSite.Execute(req)
+	identity, err := getIdentity(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+	siteID, err := s.handlers.CreateSite.Execute(&req, identity)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -34,13 +42,17 @@ func (s Server) CreateSite(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(resp)
 }
 
-func (s Server) UpdateSite(c *fiber.Ctx, id uint64) error {
+func (s *Server) UpdateSite(c *fiber.Ctx, id uint64) error {
 	var req dto.UpdateSiteRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	updatedSiteID, err := s.handlers.UpdateSite.Execute(id, req)
+	identity, err := getIdentity(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+	updatedSiteID, err := s.handlers.UpdateSite.Execute(id, &req, identity)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -52,13 +64,13 @@ func (s Server) UpdateSite(c *fiber.Ctx, id uint64) error {
 	return c.Status(fiber.StatusOK).JSON(resp)
 }
 
-func (s Server) EnrichContent(c *fiber.Ctx) error {
+func (s *Server) EnrichContent(c *fiber.Ctx) error {
 	var req dto.EnrichContentRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	enrichContent, err := s.handlers.EnrichContent.Execute(req)
+	enrichContent, err := s.handlers.EnrichContent.Execute(&req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -87,8 +99,13 @@ func (s *Server) CheckDomain(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(resp)
 }
 
-func (s Server) GetSite(c *fiber.Ctx, id uint64) error {
-	resp, err := s.handlers.GetSite.Query(id)
+func (s *Server) GetSite(c *fiber.Ctx, id uint64) error {
+
+	identity, err := getIdentity(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+	resp, err := s.handlers.GetSite.Query(id, identity)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -96,7 +113,7 @@ func (s Server) GetSite(c *fiber.Ctx, id uint64) error {
 	return c.Status(fiber.StatusOK).JSON(resp)
 }
 
-func (s Server) GetToken(c *fiber.Ctx) error {
+func (s *Server) GetToken(c *fiber.Ctx) error {
 	var req dto.AuthCode
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
@@ -112,4 +129,61 @@ func (s Server) GetToken(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(resp)
+}
+
+func (s *Server) CreatePayment(c *fiber.Ctx) error {
+	var req dto.CreatePaymentRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	identity, err := getIdentity(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+	clientSecret, err := s.handlers.Payment.CreatePayment(&req, identity)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	resp := dto.CreatePaymentResponse{
+		ClientSecret: clientSecret,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(resp)
+}
+
+func (s *Server) GetPaymentStatus(c *fiber.Ctx, id string) error {
+
+	paymentInfo, err := s.handlers.Payment.GetPaymentInfo(id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(paymentInfo)
+}
+
+func (s *Server) HandleEvent(c *fiber.Ctx) error {
+	var req dto.StripeWebhookRequest
+
+	bytes, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+	signatureHeader := c.Get("Stripe-Signature")
+
+	err = s.handlers.Payment.Webhook(bytes, signatureHeader)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
+func getToken(c *fiber.Ctx) string {
+	return strings.Split(c.Get("Authorization"), "Bearer: ")[1]
+}
+
+func getIdentity(c *fiber.Ctx) (*auth.Identity, error) {
+	return auth.IdentityProvider{}.GetIdentity(getToken(c))
 }
