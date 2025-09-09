@@ -26,9 +26,8 @@ func (m *MailServer) SendMail(to []string, subject, body string) error {
 	headers["To"] = strings.Join(to, ",")
 	headers["Subject"] = subject
 	headers["MIME-Version"] = "1.0"
-	headers["Content-Type"] = "text/plain; charset=\"utf-8\""
+	headers["Content-Type"] = "text/html; charset=\"utf-8\""
 
-	// Build the full message
 	var msg strings.Builder
 	for k, v := range headers {
 		msg.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))

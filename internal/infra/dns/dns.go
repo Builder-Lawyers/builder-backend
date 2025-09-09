@@ -139,6 +139,21 @@ func (d *DNSProvisioner) WaitAndGetDistribution(ctx context.Context, distributio
 	return "", fmt.Errorf("timed out waiting for distribution to deploy")
 }
 
+func (d *DNSProvisioner) DisableDistribution(ctx context.Context, distributionID string) error {
+
+	_, err := d.cfClient.UpdateDistribution(ctx, &cloudfront.UpdateDistributionInput{
+		Id: &distributionID,
+		DistributionConfig: &types.DistributionConfig{
+			Enabled: aws.Bool(false),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to disable distribution: %w", err)
+	}
+
+	return nil
+}
+
 func (d *DNSProvisioner) RequestDomain(ctx context.Context, domain string) (string, error) {
 	available, err := d.CheckAvailability(domain)
 	if err != nil || !available {
@@ -192,13 +207,13 @@ func (d *DNSProvisioner) CheckAvailability(domain string) (bool, error) {
 	return out.Availability == rdTypes.DomainAvailabilityAvailable, nil
 }
 
-func (d *DNSProvisioner) CreateSubdomain(baseDomain, domain, cfDomain string) error {
+func (d *DNSProvisioner) CreateSubdomain(ctx context.Context, baseDomain, domain, cfDomain string) error {
 
-	res, err := d.client.ListHostedZonesByName(context.Background(), &route53.ListHostedZonesByNameInput{
+	res, err := d.client.ListHostedZonesByName(ctx, &route53.ListHostedZonesByNameInput{
 		DNSName: aws.String(baseDomain),
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create alias record: %w", err)
 	}
 	var hostedZoneID string
 	for _, hostedZone := range res.HostedZones {
@@ -227,9 +242,53 @@ func (d *DNSProvisioner) CreateSubdomain(baseDomain, domain, cfDomain string) er
 		},
 	}
 
-	resp, err := d.client.ChangeResourceRecordSets(context.Background(), input)
+	resp, err := d.client.ChangeResourceRecordSets(ctx, input)
 	if err != nil {
 		return fmt.Errorf("failed to create alias record: %w", err)
+	}
+
+	fmt.Println("Record change submitted. Change ID:", aws.ToString(resp.ChangeInfo.Id))
+	return nil
+}
+
+func (d *DNSProvisioner) DeleteSubdomain(ctx context.Context, baseDomain, domain, cfDomain string) error {
+
+	res, err := d.client.ListHostedZonesByName(ctx, &route53.ListHostedZonesByNameInput{
+		DNSName: aws.String(baseDomain),
+	})
+	if err != nil {
+		return fmt.Errorf("error listing hostedzoned, %v", err)
+	}
+	var hostedZoneID string
+	for _, hostedZone := range res.HostedZones {
+		parts := strings.SplitN(aws.ToString(hostedZone.Id), "/hostedzone/", 2)
+		hostedZoneID = parts[1]
+	}
+	fmt.Println(hostedZoneID)
+
+	input := &route53.ChangeResourceRecordSetsInput{
+		HostedZoneId: aws.String(hostedZoneID),
+		ChangeBatch: &rTypes.ChangeBatch{
+			Changes: []rTypes.Change{
+				{
+					Action: rTypes.ChangeActionDelete,
+					ResourceRecordSet: &rTypes.ResourceRecordSet{
+						Name: aws.String(domain),
+						Type: rTypes.RRTypeA,
+						AliasTarget: &rTypes.AliasTarget{
+							DNSName:              aws.String(cfDomain),
+							HostedZoneId:         aws.String("Z2FDTNDATAQYW2"),
+							EvaluateTargetHealth: false,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	resp, err := d.client.ChangeResourceRecordSets(ctx, input)
+	if err != nil {
+		return fmt.Errorf("failed to delete alias record: %w", err)
 	}
 
 	fmt.Println("Record change submitted. Change ID:", aws.ToString(resp.ChangeInfo.Id))

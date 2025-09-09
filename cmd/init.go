@@ -78,10 +78,11 @@ func Init() {
 		ProvisionSite:     commands.NewProvisionSite(provisionConfig, uowFactory, eventRepo, provisionRepo, s3, templateBuild, dnsProvisioner, acmCerts),
 		ProvisionCDN:      commands.NewProvisionCDN(provisionConfig, uowFactory, provisionRepo, dnsProvisioner),
 		FinalizeProvision: commands.NewFinalizeProvision(provisionConfig, uowFactory, dnsProvisioner, eventRepo),
+		DeactivateSite:    commands.NewDeactivateSite(uowFactory, dnsProvisioner, provisionRepo, eventRepo),
 		Auth:              commands.NewAuth(uowFactory, oidcConfig),
 		CheckDomain:       query.NewCheckDomain(dnsProvisioner),
 		SendMail:          commands.NewSendMail(mailServer, uowFactory),
-		Payment:           commands.NewPayment(uowFactory, paymentConfig),
+		Payment:           commands.NewPayment(uowFactory, eventRepo, paymentConfig),
 	}
 	handler := rest.NewServer(handlers)
 	app := fiber.New(fiber.Config{

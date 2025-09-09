@@ -42,7 +42,7 @@ func (c *CreateSite) Execute(req *dto.CreateSiteRequest, identity *auth.Identity
 		TemplateID: req.TemplateID,
 		CreatorID:  req.UserID,
 		PlanID:     req.PlanID,
-		Status:     consts.InCreation,
+		Status:     consts.SiteStatusInCreation,
 		Fields:     db.MapToRawMessage(*req.Fields),
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),

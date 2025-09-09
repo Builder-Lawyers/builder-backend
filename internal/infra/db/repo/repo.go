@@ -21,7 +21,7 @@ func NewProvisionRepo() *ProvisionRepo {
 	return &ProvisionRepo{}
 }
 
-func (p ProvisionRepo) GetProvisionByID(tx pgx.Tx, siteID string) (db.Provision, error) {
+func (p ProvisionRepo) GetProvisionByID(tx pgx.Tx, siteID uint64) (db.Provision, error) {
 	var provision db.Provision
 	err := tx.QueryRow(context.Background(), "SELECT site_id FROM builder.provisions WHERE site_id = $1", siteID).Scan(&provision.SiteID,
 		&provision.Type, &provision.Domain, &provision.CertificateARN, &provision.CloudfrontID, &provision.CreatedAt, &provision.UpdatedAt)

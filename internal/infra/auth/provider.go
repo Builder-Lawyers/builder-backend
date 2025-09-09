@@ -11,7 +11,6 @@ type IdentityProvider struct {
 
 type Identity struct {
 	UserID string
-	Email  string
 }
 
 func (p IdentityProvider) GetIdentity(tokenString string) (*Identity, error) {
@@ -28,6 +27,5 @@ func (p IdentityProvider) GetIdentity(tokenString string) (*Identity, error) {
 
 	return &Identity{
 		UserID: claims["sub"].(string),
-		Email:  claims["email"].(string),
 	}, nil
 }

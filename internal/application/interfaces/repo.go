@@ -7,7 +7,7 @@ import (
 )
 
 type ProvisionRepo interface {
-	GetProvisionByID(tx pgx.Tx, siteID string) (db.Provision, error)
+	GetProvisionByID(tx pgx.Tx, siteID uint64) (db.Provision, error)
 	InsertProvision(tx pgx.Tx, provision db.Provision) error
 }
 

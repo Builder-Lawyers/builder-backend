@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -50,7 +51,11 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 	} else {
 		baseDomain = event.Domain
 	}
-	err = c.DNSProvisioner.CreateSubdomain(baseDomain, event.Domain, cfDomain)
+
+	timeout = 5 * time.Second
+	ctx, cancel = context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err = c.DNSProvisioner.CreateSubdomain(ctx, baseDomain, event.Domain, cfDomain)
 	if err != nil {
 		slog.Error("err creating route53 subdomain", "r53", err)
 		return nil, err
@@ -61,7 +66,7 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 	if err != nil {
 		return nil, err
 	}
-	newStatus := consts.Created
+	newStatus := consts.SiteStatusCreated
 	_, err = tx.Exec(context.Background(), "UPDATE builder.sites SET status = $1, updated_at = $2 WHERE id = $3", newStatus, time.Now(), event.SiteID)
 	if err != nil {
 		return uow, err
@@ -76,19 +81,20 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 	var userID string
 	mailData := mail.SiteCreatedData{
 		SiteURL: event.Domain,
+		Year:    strconv.Itoa(time.Now().Year()),
 	}
 	err = tx.QueryRow(context.Background(), "SELECT s.creator_id, u.first_name, u.second_name "+
 		"FROM builder.sites s "+
 		"LEFT JOIN builder.users u ON s.creator_id = u.id "+
 		"WHERE id = $1", event.SiteID,
-	).Scan(&userID, mailData.Name, mailData.Surname)
+	).Scan(&userID, mailData.CustomerFirstName, mailData.CustomerSecondName)
 	if err != nil {
 		return uow, err
 	}
 
 	sendMailEvent := events.SendMail{
 		UserID:  userID,
-		Subject: string(mail.SiteCreated),
+		Subject: mailData.GetSubject(),
 		Data:    mailData,
 	}
 

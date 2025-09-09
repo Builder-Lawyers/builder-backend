@@ -3,6 +3,8 @@ package commands
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"html/template"
 	"strings"
 	"time"
@@ -24,7 +26,10 @@ func NewSendMail(server *mail.MailServer, uowFactory *dbs.UOWFactory) *SendMail 
 }
 
 func (c *SendMail) Handle(event events.SendMail) (shared.UoW, error) {
-	mailData := event.Data.(mail.MailData)
+	mailData, err := mapToMailData(event)
+	if err != nil {
+		return nil, err
+	}
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
@@ -44,20 +49,16 @@ func (c *SendMail) Handle(event events.SendMail) (shared.UoW, error) {
 		return uow, err
 	}
 
-	tmpl, err := template.New(string(mailData.GetMailType())).Parse(mailTemplate)
+	htmlBody, err := renderHTML(mailTemplate, mailData)
 	if err != nil {
-		return uow, err
-	}
-	var mailContent bytes.Buffer
-	if err = tmpl.Execute(&mailContent, event.Data); err != nil {
-		return uow, err
+		return uow, fmt.Errorf("error rendering html, %v", err)
 	}
 
 	mail := db.Mail{
 		MailType:   mailData.GetMailType(),
 		Recipients: strings.Join(recipients, ","),
 		Subject:    event.Subject,
-		Content:    mailContent.String(),
+		Content:    htmlBody,
 		SentAt:     time.Now(),
 	}
 	_, err = tx.Exec(context.Background(), "INSERT INTO builder.mails(type, recipients, subject, content, sent_at) VALUES ($1,$2,$3,$4,$5)",
@@ -72,4 +73,43 @@ func (c *SendMail) Handle(event events.SendMail) (shared.UoW, error) {
 	}
 
 	return uow, nil
+}
+
+func renderHTML(tmpl string, data mail.MailData) (string, error) {
+	t := template.Must(template.New("email").Parse(tmpl))
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, data); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+func mapToMailData(event events.SendMail) (mail.MailData, error) {
+
+	switch event.Subject {
+	case mail.FreeTrialEndsData{}.GetSubject():
+		var trialEnds mail.FreeTrialEndsData
+		raw, _ := json.Marshal(event.Data)
+		if err := json.Unmarshal(raw, &trialEnds); err != nil {
+			return nil, fmt.Errorf("error mapping to mailData, %v", err)
+		}
+		return trialEnds, nil
+	case mail.SiteCreatedData{}.GetSubject():
+		var siteCreated mail.SiteCreatedData
+		raw, _ := json.Marshal(event.Data)
+		if err := json.Unmarshal(raw, &siteCreated); err != nil {
+			return nil, fmt.Errorf("error mapping to mailData, %v", err)
+		}
+		return siteCreated, nil
+	case mail.SiteDeactivatedData{}.GetSubject():
+		var siteDeactivated mail.SiteDeactivatedData
+		raw, _ := json.Marshal(event.Data)
+		if err := json.Unmarshal(raw, &siteDeactivated); err != nil {
+			return nil, fmt.Errorf("error mapping to mailData, %v", err)
+		}
+		return siteDeactivated, nil
+
+	}
+
+	return nil, fmt.Errorf("no such mailData type exists")
 }

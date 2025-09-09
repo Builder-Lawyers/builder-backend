@@ -48,7 +48,8 @@ func (c *ProvisionCDN) Handle(event events.ProvisionCDN) (shared.UoW, error) {
 	timeout := 3 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	distributionID, err := c.DNSProvisioner.MapCfDistributionToS3(ctx, "/"+siteID, c.cfg.Defaults.S3Domain, event.Domain, event.CertificateARN)
+	// TODO: verify here domain passed, if it is ok
+	distributionID, err := c.DNSProvisioner.MapCfDistributionToS3(ctx, "/sites/"+siteID, event.Domain, event.Domain, event.CertificateARN)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +60,7 @@ func (c *ProvisionCDN) Handle(event events.ProvisionCDN) (shared.UoW, error) {
 		return nil, err
 	}
 
-	provision, err := c.GetProvisionByID(tx, siteID)
+	provision, err := c.GetProvisionByID(tx, event.SiteID)
 	if err != nil {
 		return uow, err
 	}

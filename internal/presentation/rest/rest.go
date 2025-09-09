@@ -1,7 +1,7 @@
 package rest
 
 import (
-	"encoding/json"
+	"log/slog"
 	"strings"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application"
@@ -164,15 +164,11 @@ func (s *Server) GetPaymentStatus(c *fiber.Ctx, id string) error {
 }
 
 func (s *Server) HandleEvent(c *fiber.Ctx) error {
-	var req dto.StripeWebhookRequest
 
-	bytes, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
+	slog.Info("ARRIVED")
 	signatureHeader := c.Get("Stripe-Signature")
 
-	err = s.handlers.Payment.Webhook(bytes, signatureHeader)
+	err := s.handlers.Payment.Webhook(c.Body(), signatureHeader)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -181,7 +177,12 @@ func (s *Server) HandleEvent(c *fiber.Ctx) error {
 }
 
 func getToken(c *fiber.Ctx) string {
-	return strings.Split(c.Get("Authorization"), "Bearer: ")[1]
+	head := c.Get("Authorization")
+	parts := strings.SplitN(head, "Bearer: ", 2)
+	if len(parts) < 2 {
+		return ""
+	}
+	return parts[1]
 }
 
 func getIdentity(c *fiber.Ctx) (*auth.Identity, error) {

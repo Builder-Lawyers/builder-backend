@@ -13,6 +13,7 @@ type Handlers struct {
 	*commands.ProvisionSite
 	*commands.ProvisionCDN
 	*commands.FinalizeProvision
+	*commands.DeactivateSite
 	*commands.SendMail
 	*commands.Auth
 	*commands.Payment

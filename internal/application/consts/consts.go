@@ -1,10 +1,12 @@
 package consts
 
-type Status string
+type SiteStatus string
 
-const InCreation Status = "InCreation"
-const AwaitingProvision Status = "AwaitingProvision"
-const Created Status = "Created"
+const SiteStatusInCreation SiteStatus = "SiteStatusInCreation"
+const SiteStatusAwaitingProvision SiteStatus = "SiteStatusAwaitingProvision"
+const SiteStatusCreated SiteStatus = "SiteStatusCreated"
+const SiteStatusDeactivated SiteStatus = "Deactivated"
+const SiteStatusDeleted SiteStatus = "Deleted"
 
 type OutboxStatus int
 
@@ -27,4 +29,5 @@ const (
 	ProvisionStatusInProcess   ProvisionStatus = "IN_PROCESS"
 	ProvisionStatusProvisioned ProvisionStatus = "PROVISIONED"
 	ProvisionStatusInError     ProvisionStatus = "IN_ERROR"
+	ProvisionStatusDeactivated ProvisionStatus = "DEACTIVATED"
 )

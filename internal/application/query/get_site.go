@@ -54,7 +54,7 @@ func (c *GetSite) Query(siteIDParam uint64, identity *auth.Identity) (dto.GetSit
 	}
 
 	var healthCheckStatus dto.GetSiteResponseHealthCheckStatus
-	provision, err := c.ProvisionRepo.GetProvisionByID(tx, siteID)
+	provision, err := c.ProvisionRepo.GetProvisionByID(tx, siteIDParam)
 	if err != nil {
 		slog.Error("site is not provisioned yet, %v", "healthcheck", site)
 		healthCheckStatus = dto.NotProvisioned

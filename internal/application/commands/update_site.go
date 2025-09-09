@@ -53,15 +53,14 @@ func (c *UpdateSite) Execute(siteID uint64, req *dto.UpdateSiteRequest, identity
 	}
 
 	if req.NewStatus != nil {
-		// Created - request came from templater, site is ready
-		// AwaitingProvision - from frontend, all fields are filled in by user
-		site.Status = consts.Status(*req.NewStatus)
+		// SiteStatusAwaitingProvision - from frontend, all fields are filled in by user
+		site.Status = consts.SiteStatus(*req.NewStatus)
 		_, err = tx.Exec(context.Background(), "UPDATE builder.sites SET status = $1, updated_at = $2 WHERE id = $3", site.Status, time.Now(), siteID)
 		if err != nil {
 			return 0, err
 		}
 
-		if site.Status == consts.AwaitingProvision {
+		if site.Status == consts.SiteStatusAwaitingProvision {
 			slog.Info("requesting site provision", "siteID", siteID)
 			var templateName string
 			err = tx.QueryRow(context.Background(), "SELECT name FROM builder.templates WHERE id = $1", site.TemplateID).Scan(&templateName)

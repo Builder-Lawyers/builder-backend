@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
@@ -43,18 +46,18 @@ func NewPaymentConfig() *PaymentConfig {
 	}
 }
 
-func NewPayment(uowFactory *dbs.UOWFactory, cfg *PaymentConfig) *Payment {
+func NewPayment(uowFactory *dbs.UOWFactory, eventRepo *repo.EventRepo, cfg *PaymentConfig) *Payment {
 	stripe.Key = cfg.apiKey
 	stripe.SetHTTPClient(&http.Client{Timeout: 10 * time.Second})
 	return &Payment{
 		uowFactory: uowFactory,
+		eventRepo:  eventRepo,
 		cfg:        cfg,
 	}
 }
 
 func (c *Payment) CreatePayment(req *dto.CreatePaymentRequest, identity *auth.Identity) (string, error) {
 
-	slog.Info("START CHECKOUT")
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
@@ -75,6 +78,24 @@ func (c *Payment) CreatePayment(req *dto.CreatePaymentRequest, identity *auth.Id
 		req.PlanID).Scan(&stripePlanID)
 	if err != nil {
 		return "", fmt.Errorf("error retrieving stripe price, %v", err)
+	}
+
+	if req.PlanID == 1 {
+		s, err := subscription.New(&stripe.SubscriptionParams{
+			Customer: stripe.String("cus_SzleNRbLmsHvcs"),
+			Items: []*stripe.SubscriptionItemsParams{
+				{
+					Price:    stripe.String(stripePlanID),
+					Quantity: stripe.Int64(1),
+				},
+			},
+			TrialPeriodDays: stripe.Int64(2), // TODO: make configurable, 2 months by default
+		})
+		if err != nil {
+			return "", fmt.Errorf("error creating sub, %v", err)
+		}
+
+		return s.ID, nil
 	}
 
 	err = tx.Commit(context.Background())
@@ -140,7 +161,7 @@ func (c *Payment) GetPaymentInfo(sessionID string) (*dto.PaymentStatusResponse, 
 		Status:        string(s.Status),
 		PaymentStatus: string(s.PaymentStatus),
 		//PaymentIntentID:     s.PaymentIntent.ID,
-		//PaymentIntentStatus: string(s.PaymentIntent.Status),
+		//PaymentIntentStatus: string(s.PaymentIntent.SiteStatus),
 	}, nil
 }
 
@@ -150,59 +171,149 @@ func (c *Payment) Webhook(req []byte, stripeHeader string) error {
 		return fmt.Errorf("error creating event, %v", err)
 	}
 
-	fmt.Println(event)
+	slog.Info("Handling event", "type", event.Type)
 
 	switch event.Type {
+
 	case "customer.subscription.trial_will_end":
-		var subscription stripe.Subscription
-		err = json.Unmarshal(event.Data.Raw, &subscription)
-		if err != nil {
-			return fmt.Errorf("error parsing subscription, %v", err)
-		}
+		return c.handleTrialEnds(event)
 
-		fmt.Printf("Trial will end for subscription %s (customer %s)", subscription.ID, subscription.Customer.ID)
-
-		uow := c.uowFactory.GetUoW()
-		tx, err := uow.Begin()
-		if err != nil {
-			return fmt.Errorf("error starting tx, %v", err)
-		}
-		var userID string
-		err = tx.QueryRow(context.Background(), "SELECT id FROM builder.users WHERE stripe_id = $1",
-			subscription.Customer.ID).Scan(&userID)
-		if err != nil {
-			return fmt.Errorf("err finding user, %v", err)
-		}
-
-		session, err := session.New(&stripe.CheckoutSessionParams{
-			Customer:           stripe.String(subscription.Customer.ID),
-			UIMode:             stripe.String("embedded"),
-			Mode:               stripe.String("setup"),
-			PaymentMethodTypes: stripe.StringSlice([]string{"card"}),
-			//SuccessURL: stripe.String("https://localhost:8080/success"),
-			//CancelURL:  stripe.String("https://localhost:8080/cancel"),
-		})
-
-		mailData := mail.FreeTrialEndsData{
-			// TODO: subscription.TrialEnd if in epoch second,
-			DaysUntilEnd: 7,
-			PaymentURL:   session.URL,
-		}
-
-		sendMailEvent := events.SendMail{
-			UserID:  userID,
-			Subject: string(mailData.GetMailType()),
-			Data:    mailData,
-		}
-		err = c.eventRepo.InsertEvent(tx, sendMailEvent)
-		if err != nil {
-			return fmt.Errorf("failed to send an email, %v", err)
-		}
-
-		slog.Info("Event sendMail created", "subID", subscription.ID)
+	case "invoice.payment_failed":
+		return c.handlePaymentFailed(event)
 
 	default:
 		return fmt.Errorf("Unhandled event type: %s\n", event.Type)
+	}
+
+	return nil
+}
+
+func (c *Payment) handleTrialEnds(event stripe.Event) error {
+	var subscription stripe.Subscription
+	err := json.Unmarshal(event.Data.Raw, &subscription)
+	if err != nil {
+		return fmt.Errorf("error parsing subscription, %v", err)
+	}
+
+	fmt.Printf("Trial will end for subscription %s (customer %s)", subscription.ID, subscription.Customer.ID)
+
+	uow := c.uowFactory.GetUoW()
+	tx, err := uow.Begin()
+	if err != nil {
+		return fmt.Errorf("error starting tx, %v", err)
+	}
+	var userID string
+	var firstName string
+	var secondName string
+	err = tx.QueryRow(context.Background(), "SELECT id, first_name, second_name FROM builder.users WHERE stripe_id = $1",
+		subscription.Customer.ID).Scan(&userID, &firstName, &secondName)
+	if err != nil {
+		return fmt.Errorf("err finding user, %v", err)
+	}
+
+	session, err := session.New(&stripe.CheckoutSessionParams{
+		Customer:           stripe.String(subscription.Customer.ID),
+		Mode:               stripe.String("setup"),
+		PaymentMethodTypes: stripe.StringSlice([]string{"card"}),
+		SuccessURL:         stripe.String("https://localhost:3000/success"),
+		CancelURL:          stripe.String("https://localhost:3000/cancel"),
+	})
+
+	secondsUntilEnd := subscription.TrialEnd - time.Now().Unix()
+	daysUntilEnd := int(math.Ceil(float64(secondsUntilEnd) / 86400.0))
+
+	mailData := mail.FreeTrialEndsData{
+		DaysUntilEnd:       daysUntilEnd,
+		PaymentURL:         session.URL,
+		Year:               strconv.Itoa(time.Now().Year()),
+		CustomerFirstName:  firstName,
+		CustomerSecondName: secondName,
+	}
+
+	sendMailEvent := events.SendMail{
+		UserID:  userID,
+		Subject: mailData.GetSubject(),
+		Data:    mailData,
+	}
+	err = c.eventRepo.InsertEvent(tx, sendMailEvent)
+	if err != nil {
+		return fmt.Errorf("failed to send an email, %v", err)
+	}
+
+	slog.Info("Event sendMail created", "subID", subscription.ID)
+
+	err = uow.Commit()
+	if err != nil {
+		return fmt.Errorf("error commiting, %v", err)
+	}
+
+	return nil
+}
+
+func (c *Payment) handlePaymentFailed(event stripe.Event) error {
+
+	// TODO: before deactivating site totally, send an email warning a user that site is about to be deactivated
+	// if user doesn't retry payment (if it was a failure in payment)
+	var invoice stripe.Invoice
+	if err := json.Unmarshal(event.Data.Raw, &invoice); err != nil {
+		return fmt.Errorf("error parsing event, %v", err)
+	}
+	var subID string
+	if invoice.Parent != nil &&
+		invoice.Parent.Type == stripe.InvoiceParentTypeSubscriptionDetails &&
+		invoice.Parent.SubscriptionDetails != nil &&
+		invoice.Parent.SubscriptionDetails.Subscription != nil {
+		subID = invoice.Parent.SubscriptionDetails.Subscription.ID
+	}
+
+	// TODO: if invoice.Parent has no SubscriptionID field
+	//params := &stripe.InvoiceParams{}
+	//params.AddExpand("parent.subscription_details.subscription")
+	//
+	//got, err := invoice.Get(invoice.ID, params)
+	//if err != nil {
+	//	return fmt.Errorf("error getting invoice, %v", err)
+	//}
+	//
+	//sub := got.Parent.SubscriptionDetails.Subscription
+	sub, err := subscription.Get(subID, &stripe.SubscriptionParams{})
+	if err != nil {
+		return fmt.Errorf("error getting subscription, %v", err)
+	}
+
+	uow := c.uowFactory.GetUoW()
+	tx, err := uow.Begin()
+	if err != nil {
+		return fmt.Errorf("error creating tx, %v", err)
+	}
+
+	var siteID uint64
+	var siteStatus consts.SiteStatus
+	err = tx.QueryRow(context.Background(), "SELECT id, status FROM builder.sites WHERE subscription_id = $1",
+		sub.ID).Scan(&siteID, &siteStatus)
+	if err != nil {
+		return fmt.Errorf("error getting site for subscription, %v", err)
+	}
+
+	if siteStatus == consts.SiteStatusCreated {
+		deactivateSite := events.DeactivateSite{
+			SubscriptionID: sub.ID,
+			SiteID:         siteID,
+			Reason:         "Payment for subscription wasn't successful",
+		}
+
+		err = c.eventRepo.InsertEvent(tx, deactivateSite)
+		if err != nil {
+			return fmt.Errorf("error creating event, %v", err)
+		}
+
+	} else {
+		slog.Info("Site is not provisioned yet", "siteID", siteID)
+	}
+
+	err = uow.Commit()
+	if err != nil {
+		return fmt.Errorf("error commiting tx, %v", err)
 	}
 
 	return nil

@@ -383,8 +383,9 @@ components:
         clientSecret:
           type: string
           example: asdsad
-      required:
-        - clientSecret
+        subscriptionID:
+          type: string
+          example: 4ad6c4c6-c119-4759-9f04-4e985a6a11e7
 
     PaymentStatusResponse:
       type: object

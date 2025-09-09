@@ -10,19 +10,20 @@ import (
 )
 
 type Site struct {
-	ID             uint64          `db:"id"`
-	TemplateID     uint8           `db:"template_id"`
-	CreatorID      uuid.UUID       `db:"creator_id"`
-	PlanID         uint8           `db:"plan_id"`
-	SubscriptionID string          `db:"subscription_id"`
-	Status         consts.Status   `db:"status"`
-	Fields         json.RawMessage `db:"fields"`
-	CreatedAt      time.Time       `db:"created_at"`
-	UpdatedAt      time.Time       `db:"updated_at,omitempty"`
+	ID             uint64            `db:"id"`
+	TemplateID     uint8             `db:"template_id"`
+	CreatorID      uuid.UUID         `db:"creator_id"`
+	PlanID         uint8             `db:"plan_id"`
+	SubscriptionID string            `db:"subscription_id"`
+	Status         consts.SiteStatus `db:"status"`
+	Fields         json.RawMessage   `db:"fields"`
+	CreatedAt      time.Time         `db:"created_at"`
+	UpdatedAt      time.Time         `db:"updated_at,omitempty"`
 }
 
 type User struct {
 	ID         uuid.UUID `db:"id"`
+	StripeID   string    `db:"stripe_id"`
 	FirstName  string    `db:"first_name"`
 	SecondName string    `db:"second_name"`
 	Email      string    `db:"email"`

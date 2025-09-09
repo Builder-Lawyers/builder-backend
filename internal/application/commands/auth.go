@@ -47,7 +47,7 @@ func NewAuth(uowFactory *dbs.UOWFactory, cfg *auth.OIDCConfig) *Auth {
 func (c *Auth) Callback(code string) (string, error) {
 	rawToken, err := c.oauthClient.Exchange(context.Background(), code)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error converting code to token, %v", err)
 	}
 	tokenString := rawToken.AccessToken
 
@@ -68,22 +68,6 @@ func (c *Auth) Callback(code string) (string, error) {
 	} else {
 		return "", fmt.Errorf("invalid token")
 	}
-
-	// tests
-	iat, _ := claims["iat"].(float64)
-	exp, _ := claims["exp"].(float64)
-
-	fmt.Println("Token claims:", claims)
-	fmt.Printf("iat (issued at): %v (%s)\n", int64(iat), time.Unix(int64(iat), 0).UTC())
-	fmt.Printf("exp (expires at): %v (%s)\n", int64(exp), time.Unix(int64(exp), 0).UTC())
-
-	// Compare with system clock
-	now := time.Now().UTC()
-	fmt.Printf("System clock now: %v (%d)\n", now, now.Unix())
-
-	diff := now.Unix() - int64(iat)
-	fmt.Printf("Clock skew relative to iat: %d seconds\n", diff)
-	// tests
 
 	c.cache[claims["sub"].(string)] = tokenString
 
