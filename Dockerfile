@@ -1,5 +1,6 @@
 FROM golang:1.24.5 AS build
 WORKDIR /app
+COPY /api /app/api
 COPY "/cmd" "/app/cmd"
 COPY /pkg /app/pkg
 COPY /internal /app/internal
@@ -25,3 +26,4 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 
 RUN node -v && npm -v && pnpm -v
 COPY --from=build /app/main /usr/local/bin/
+COPY --from=build /app/api /api
