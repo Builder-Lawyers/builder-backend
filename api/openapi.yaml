@@ -105,17 +105,18 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /domain/check:
-    post:
+  /domain/{domain}:
+    get:
       summary: Checks domain availability
       description: Returns whether a domain is available or not
       operationId: checkDomain
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CheckDomainParams'
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          schema:
+            type: string
+            format: string
       responses:
         '200':
           description: Domain availability info
@@ -128,24 +129,26 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /auth/token:
+  /auth/session:
     post:
-      summary: Gets an access token from oidc
-      description: Returns access token for a specific code using authorization flow
-      operationId: getToken
+      summary: Gets a session from access token
+      description: Returns a session ID cookie
+      operationId: createSession
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AuthCode'
+              $ref: '#/components/schemas/CreateSession'
       responses:
         '200':
-          description: Access token
-          content:
-            application/json:
+          description: Session ID in cookie
+          headers:
+            Set-Cookie:
+              description: Session cookie (HttpOnly)
               schema:
-                $ref: '#/components/schemas/AccessToken'
+                type: string
+                example: ID=abc123; HttpOnly; Path=/; Secure
         '400':
           $ref: '#/components/responses/BadRequestError'
         '500':
@@ -344,14 +347,22 @@ components:
       required:
         - available
 
-    AuthCode:
+    CreateSession:
       type: object
       properties:
-        code:
+        accessToken:
           type: string
-          example: 3ad6c7c6-c119-4759-9f04-4e985a6a11e7
+          example: 3ad6c7c6-c119-475.1203213adssajd.23eqwsaedsa
+        refreshToken:
+          type: string
+          example: 2312312saasasdasf
+        idToken:
+          type: string
+          example: aSLKDs1230kodlsd1k2jdk
       required:
-        - code
+        - accessToken
+        - refreshToken
+        - idToken
 
     AccessToken:
       type: object

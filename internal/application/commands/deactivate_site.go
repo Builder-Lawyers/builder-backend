@@ -34,7 +34,7 @@ func (c *DeactivateSite) Handle(event events.DeactivateSite) (interfaces.UoW, er
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("error starting tx, %v", err)
+		return nil, err
 	}
 	provision, err := c.provisionRepo.GetProvisionByID(tx, event.SiteID)
 	if err != nil {

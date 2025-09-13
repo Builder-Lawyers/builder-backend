@@ -8,7 +8,6 @@ import (
 )
 
 type SiteAwaitingProvision struct {
-	ID           uint64
 	SiteID       uint64
 	TemplateName string
 	DomainType   consts.ProvisionType

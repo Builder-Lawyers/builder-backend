@@ -61,7 +61,7 @@ func (c *Payment) CreatePayment(req *dto.CreatePaymentRequest, identity *auth.Id
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
-		return "", fmt.Errorf("error starting tx, %v", err)
+		return "", err
 	}
 	var existingSubID string
 	err = tx.QueryRow(context.Background(), "SELECT subscription_id FROM builder.sites WHERE id = $1", req.SiteID).Scan(&existingSubID)
@@ -200,7 +200,7 @@ func (c *Payment) handleTrialEnds(event stripe.Event) error {
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
-		return fmt.Errorf("error starting tx, %v", err)
+		return err
 	}
 	var userID string
 	var firstName string
@@ -284,7 +284,7 @@ func (c *Payment) handlePaymentFailed(event stripe.Event) error {
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
-		return fmt.Errorf("error creating tx, %v", err)
+		return err
 	}
 
 	var siteID uint64

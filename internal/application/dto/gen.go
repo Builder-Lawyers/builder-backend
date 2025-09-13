@@ -28,21 +28,6 @@ const (
 	InCreation        UpdateSiteRequestNewStatus = "InCreation"
 )
 
-// AccessToken defines model for AccessToken.
-type AccessToken struct {
-	Token string `json:"token"`
-}
-
-// AuthCode defines model for AuthCode.
-type AuthCode struct {
-	Code string `json:"code"`
-}
-
-// CheckDomainParams defines model for CheckDomainParams.
-type CheckDomainParams struct {
-	Domain string `json:"domain"`
-}
-
 // CreatePaymentRequest defines model for CreatePaymentRequest.
 type CreatePaymentRequest struct {
 	PlanID uint8 `json:"planID"`
@@ -51,7 +36,15 @@ type CreatePaymentRequest struct {
 
 // CreatePaymentResponse defines model for CreatePaymentResponse.
 type CreatePaymentResponse struct {
-	ClientSecret string `json:"clientSecret"`
+	ClientSecret   *string `json:"clientSecret,omitempty"`
+	SubscriptionID *string `json:"subscriptionID,omitempty"`
+}
+
+// CreateSession defines model for CreateSession.
+type CreateSession struct {
+	AccessToken  string `json:"accessToken"`
+	IdToken      string `json:"idToken"`
+	RefreshToken string `json:"refreshToken"`
 }
 
 // CreateSiteRequest defines model for CreateSiteRequest.
@@ -140,11 +133,8 @@ type UnauthorizedError = ErrorResponse
 // EnrichContentJSONRequestBody defines body for EnrichContent for application/json ContentType.
 type EnrichContentJSONRequestBody = EnrichContentRequest
 
-// GetTokenJSONRequestBody defines body for GetToken for application/json ContentType.
-type GetTokenJSONRequestBody = AuthCode
-
-// CheckDomainJSONRequestBody defines body for CheckDomain for application/json ContentType.
-type CheckDomainJSONRequestBody = CheckDomainParams
+// CreateSessionJSONRequestBody defines body for CreateSession for application/json ContentType.
+type CreateSessionJSONRequestBody = CreateSession
 
 // CreatePaymentJSONRequestBody defines body for CreatePayment for application/json ContentType.
 type CreatePaymentJSONRequestBody = CreatePaymentRequest

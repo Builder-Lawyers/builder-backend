@@ -1,13 +1,16 @@
 package rest
 
 import (
+	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 var _ ServerInterface = (*Server)(nil)
@@ -26,7 +29,7 @@ func (s *Server) CreateSite(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	identity, err := getIdentity(c)
+	identity, err := s.getIdentity(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -48,7 +51,7 @@ func (s *Server) UpdateSite(c *fiber.Ctx, id uint64) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	identity, err := getIdentity(c)
+	identity, err := s.getIdentity(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -82,13 +85,9 @@ func (s *Server) EnrichContent(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(resp)
 }
 
-func (s *Server) CheckDomain(c *fiber.Ctx) error {
-	var req dto.CheckDomainParams
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
-	}
+func (s *Server) CheckDomain(c *fiber.Ctx, domain string) error {
 
-	available, err := s.handlers.CheckDomain.Query(req.Domain)
+	available, err := s.handlers.CheckDomain.Query(domain)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -101,7 +100,7 @@ func (s *Server) CheckDomain(c *fiber.Ctx) error {
 
 func (s *Server) GetSite(c *fiber.Ctx, id uint64) error {
 
-	identity, err := getIdentity(c)
+	identity, err := s.getIdentity(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -113,22 +112,27 @@ func (s *Server) GetSite(c *fiber.Ctx, id uint64) error {
 	return c.Status(fiber.StatusOK).JSON(resp)
 }
 
-func (s *Server) GetToken(c *fiber.Ctx) error {
-	var req dto.AuthCode
+func (s *Server) CreateSession(c *fiber.Ctx) error {
+	var req dto.CreateSession
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	accessToken, err := s.handlers.Auth.Callback(req.Code)
+	sessionID, err := s.handlers.Auth.CreateSession(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	resp := dto.AccessToken{
-		Token: accessToken,
-	}
+	c.Cookie(&fiber.Cookie{
+		Name:     "ID",
+		Value:    sessionID,
+		Expires:  time.Now().Add(24 * time.Hour), // 1 day
+		HTTPOnly: true,                           // prevent JS access
+		Secure:   false,                          // TODO: set to true to send only over HTTPS
+		SameSite: "Strict",                       // protect against CSRF
+	})
 
-	return c.Status(fiber.StatusOK).JSON(resp)
+	return c.SendStatus(fiber.StatusOK)
 }
 
 func (s *Server) CreatePayment(c *fiber.Ctx) error {
@@ -137,7 +141,7 @@ func (s *Server) CreatePayment(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	identity, err := getIdentity(c)
+	identity, err := s.getIdentity(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -147,7 +151,7 @@ func (s *Server) CreatePayment(c *fiber.Ctx) error {
 	}
 
 	resp := dto.CreatePaymentResponse{
-		ClientSecret: clientSecret,
+		ClientSecret: &clientSecret,
 	}
 
 	return c.Status(fiber.StatusOK).JSON(resp)
@@ -174,6 +178,33 @@ func (s *Server) HandleEvent(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusOK)
+}
+
+func (s *Server) getIdentity(c *fiber.Ctx) (*auth.Identity, error) {
+	session, err := getSessionID(c)
+	if err != nil {
+		return nil, err
+	}
+	identity, err := s.handlers.Auth.GetIdentity(session)
+	if err != nil {
+		return nil, err
+	}
+
+	return identity, nil
+}
+
+func getSessionID(c *fiber.Ctx) (uuid.UUID, error) {
+	cookie := c.Cookies("ID", "")
+	if cookie == "" {
+		return uuid.UUID{}, fmt.Errorf("session Cookie is absent")
+	}
+
+	sessionID, err := uuid.Parse(cookie)
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("error parsing id cookie", err)
+	}
+
+	return sessionID, nil
 }
 
 func getToken(c *fiber.Ctx) string {

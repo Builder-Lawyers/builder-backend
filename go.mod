@@ -6,6 +6,7 @@ require (
 	github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250831173650-8f2fe869ec6a
 	github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250831173650-8f2fe869ec6a
 	github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250831173650-8f2fe869ec6a
+	github.com/MicahParks/keyfunc/v3 v3.6.1
 	github.com/aws/aws-sdk-go-v2 v1.38.3
 	github.com/aws/aws-sdk-go-v2/config v1.27.5
 	github.com/aws/aws-sdk-go-v2/service/acm v1.37.2
@@ -13,20 +14,25 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/route53 v1.57.2
 	github.com/aws/aws-sdk-go-v2/service/route53domains v1.33.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.87.3
+	github.com/coreos/go-oidc v2.4.0+incompatible
 	github.com/gofiber/fiber/v2 v2.52.9
+	github.com/golang-jwt/jwt/v4 v4.5.2
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/openai/openai-go v1.12.0
 	github.com/stretchr/testify v1.10.0
+	github.com/stripe/stripe-go/v82 v82.5.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/localstack v0.38.0
+	golang.org/x/oauth2 v0.30.0
 )
 
 require (
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
-	github.com/MicahParks/keyfunc v1.9.0 // indirect
+	github.com/MicahParks/jwkset v0.8.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
@@ -50,7 +56,6 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
-	github.com/coreos/go-oidc v2.4.0+incompatible // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
@@ -67,8 +72,6 @@ require (
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
@@ -105,7 +108,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/speakeasy-api/jsonpath v0.6.0 // indirect
 	github.com/speakeasy-api/openapi-overlay v0.10.2 // indirect
-	github.com/stripe/stripe-go/v82 v82.5.0 // indirect
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
@@ -125,10 +127,10 @@ require (
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/mod v0.26.0 // indirect
-	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/time v0.9.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
 	google.golang.org/grpc v1.75.0 // indirect
 	google.golang.org/protobuf v1.36.7 // indirect

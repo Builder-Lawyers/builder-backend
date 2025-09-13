@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log/slog"
 
-	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
 )
 
@@ -17,72 +16,35 @@ func RawMessageToMap(raw json.RawMessage) map[string]interface{} {
 }
 
 func MapOutboxModelToSiteAwaitingProvisionEvent(outbox Outbox) events.SiteAwaitingProvision {
-	var payload struct {
-		SiteID       uint64               `json:"siteID"`
-		TemplateName string               `json:"templateName"`
-		DomainType   consts.ProvisionType `json:"domainType"`
-		Domain       string               `json:"domain"`
-		Fields       json.RawMessage      `json:"fields"`
-	}
-
-	if err := json.Unmarshal(outbox.Payload, &payload); err != nil {
+	var siteAwaitingProvision events.SiteAwaitingProvision
+	if err := json.Unmarshal(outbox.Payload, &siteAwaitingProvision); err != nil {
 		slog.Error("error unmarshaling event", "err", err)
 		return events.SiteAwaitingProvision{}
 	}
 
-	return events.SiteAwaitingProvision{
-		ID:           outbox.ID,
-		SiteID:       payload.SiteID,
-		TemplateName: payload.TemplateName,
-		DomainType:   payload.DomainType,
-		Domain:       payload.Domain,
-		Fields:       payload.Fields,
-		CreatedAt:    outbox.CreatedAt,
-	}
+	return siteAwaitingProvision
 }
 
 func MapOutboxModelToProvisionCDN(outbox Outbox) events.ProvisionCDN {
-	var payload struct {
-		SiteID         uint64 `json:"siteID"`
-		OperationID    string `json:"operationID"`
-		CertificateARN string `json:"certificateARN"`
-		Domain         string `json:"domain"`
-	}
-
-	if err := json.Unmarshal(outbox.Payload, &payload); err != nil {
+	var provisionCDN events.ProvisionCDN
+	if err := json.Unmarshal(outbox.Payload, &provisionCDN); err != nil {
 		slog.Error("error unmarshaling event", "err", err)
 		return events.ProvisionCDN{}
 	}
+	provisionCDN.CreatedAt = outbox.CreatedAt
 
-	return events.ProvisionCDN{
-		SiteID:         payload.SiteID,
-		OperationID:    payload.OperationID,
-		CertificateARN: payload.CertificateARN,
-		Domain:         payload.Domain,
-		CreatedAt:      outbox.CreatedAt,
-	}
+	return provisionCDN
 }
 
 func MapOutboxModelToFinalizeProvision(outbox Outbox) events.FinalizeProvision {
-	var payload struct {
-		SiteID         uint64 `json:"siteID"`
-		DistributionID string `json:"distributionID"`
-		Domain         string `json:"domain"`
-		DomainType     string `json:"domainType"`
-	}
-
-	if err := json.Unmarshal(outbox.Payload, &payload); err != nil {
+	var finalizeProvision events.FinalizeProvision
+	if err := json.Unmarshal(outbox.Payload, &finalizeProvision); err != nil {
 		slog.Error("error unmarshaling event", "err", err)
 		return events.FinalizeProvision{}
 	}
+	finalizeProvision.CreatedAt = outbox.CreatedAt
 
-	return events.FinalizeProvision{
-		SiteID:         payload.SiteID,
-		DistributionID: payload.DistributionID,
-		Domain:         payload.Domain,
-		DomainType:     consts.ProvisionType(payload.DomainType),
-		CreatedAt:      outbox.CreatedAt,
-	}
+	return finalizeProvision
 }
 
 func MapOutboxModelToSendMail(outbox Outbox) events.SendMail {
@@ -102,6 +64,16 @@ func MapOutboxModelToSendMail(outbox Outbox) events.SendMail {
 		Subject: payload.Subject,
 		Data:    payload.Data,
 	}
+}
+
+func MapOutboxModelToDeactivateSite(outbox Outbox) events.DeactivateSite {
+	var deactivateSite events.DeactivateSite
+	if err := json.Unmarshal(outbox.Payload, &deactivateSite); err != nil {
+		slog.Error("error unmarshaling event", "err", err)
+		return events.DeactivateSite{}
+	}
+
+	return deactivateSite
 }
 
 func MapToRawMessage(data map[string]interface{}) json.RawMessage {

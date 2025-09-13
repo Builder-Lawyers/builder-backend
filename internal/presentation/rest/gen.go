@@ -15,12 +15,12 @@ type ServerInterface interface {
 	// Enrich some user provided info using AI
 	// (POST /ai/enrich)
 	EnrichContent(c *fiber.Ctx) error
-	// Gets an access token from oidc
-	// (POST /auth/token)
-	GetToken(c *fiber.Ctx) error
+	// Gets a session from access token
+	// (POST /auth/session)
+	CreateSession(c *fiber.Ctx) error
 	// Checks domain availability
-	// (POST /domain/check)
-	CheckDomain(c *fiber.Ctx) error
+	// (GET /domain/{domain})
+	CheckDomain(c *fiber.Ctx, domain string) error
 	// Gets a client secret to create a payment
 	// (POST /payments)
 	CreatePayment(c *fiber.Ctx) error
@@ -54,16 +54,26 @@ func (siw *ServerInterfaceWrapper) EnrichContent(c *fiber.Ctx) error {
 	return siw.Handler.EnrichContent(c)
 }
 
-// GetToken operation middleware
-func (siw *ServerInterfaceWrapper) GetToken(c *fiber.Ctx) error {
+// CreateSession operation middleware
+func (siw *ServerInterfaceWrapper) CreateSession(c *fiber.Ctx) error {
 
-	return siw.Handler.GetToken(c)
+	return siw.Handler.CreateSession(c)
 }
 
 // CheckDomain operation middleware
 func (siw *ServerInterfaceWrapper) CheckDomain(c *fiber.Ctx) error {
 
-	return siw.Handler.CheckDomain(c)
+	var err error
+
+	// ------------- Path parameter "domain" -------------
+	var domain string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "domain", c.Params("domain"), &domain, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter domain: %w", err).Error())
+	}
+
+	return siw.Handler.CheckDomain(c, domain)
 }
 
 // CreatePayment operation middleware
@@ -155,9 +165,9 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 
 	router.Post(options.BaseURL+"/ai/enrich", wrapper.EnrichContent)
 
-	router.Post(options.BaseURL+"/auth/token", wrapper.GetToken)
+	router.Post(options.BaseURL+"/auth/session", wrapper.CreateSession)
 
-	router.Post(options.BaseURL+"/domain/check", wrapper.CheckDomain)
+	router.Get(options.BaseURL+"/domain/:domain", wrapper.CheckDomain)
 
 	router.Post(options.BaseURL+"/payments", wrapper.CreatePayment)
 

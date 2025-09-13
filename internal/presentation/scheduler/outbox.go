@@ -166,6 +166,13 @@ func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
 			status = 2
 		}
 		break
+	case events.DeactivateSite{}.GetType():
+		event := db.MapOutboxModelToDeactivateSite(outbox)
+		uow, err = o.handlers.DeactivateSite.Handle(event)
+		if err != nil {
+			status = 2
+		}
+		break
 	}
 
 	if uow == nil {

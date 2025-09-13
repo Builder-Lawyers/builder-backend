@@ -68,6 +68,13 @@ CREATE TABLE IF NOT EXISTS builder.payment_plans (
     price INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS builder.sessions (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    refresh_token TEXT,
+    issued_at TIMESTAMPTZ NOT NULL
+);
+
 insert into builder.users (id, stripe_id, first_name, second_name, email, created_at) values ('021804b8-5071-7049-7034-8853ffd88039',  'cus_SzleNRbLmsHvcs','John', 'Doe', 'sanity@mailinator.com', CURRENT_TIMESTAMP);
 insert into builder.templates(id, name) VALUES (1, 'template-v1');
 insert into builder.templates(id, name) VALUES (2, 'template-v2');
