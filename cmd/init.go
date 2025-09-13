@@ -94,6 +94,7 @@ func Init() {
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowCredentials: true,
 	}))
+	app.Static("/docs", "./api")
 	rest.RegisterHandlers(app, handler)
 
 	outboxPoller := scheduler.NewOutboxPoller(handlers, uowFactory, outboxConfig)
