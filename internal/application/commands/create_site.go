@@ -28,7 +28,7 @@ func (c *CreateSite) Execute(req *dto.CreateSiteRequest, identity *auth.Identity
 	if err != nil {
 		return 0, err
 	}
-	err = tx.QueryRow(context.Background(), "SELECT id, first_name, second_name, email, created_at FROM builder.users WHERE id=$1", req.UserID).Scan(
+	err = tx.QueryRow(context.Background(), "SELECT id, first_name, second_name, email, created_at FROM builder.users WHERE id=$1", identity.UserID).Scan(
 		&creator.ID,
 		&creator.FirstName,
 		&creator.SecondName,
@@ -40,7 +40,7 @@ func (c *CreateSite) Execute(req *dto.CreateSiteRequest, identity *auth.Identity
 	}
 	newSite := db.Site{
 		TemplateID: req.TemplateID,
-		CreatorID:  req.UserID,
+		CreatorID:  identity.UserID,
 		PlanID:     req.PlanID,
 		Status:     consts.SiteStatusInCreation,
 		Fields:     db.MapToRawMessage(*req.Fields),

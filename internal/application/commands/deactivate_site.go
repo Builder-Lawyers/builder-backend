@@ -41,17 +41,17 @@ func (c *DeactivateSite) Handle(event events.DeactivateSite) (interfaces.UoW, er
 		return uow, fmt.Errorf("error retrieving site's provision, %v", err)
 	}
 
-	timeout := 5 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
 	// TODO: how do i get a baseDomain and a subdomain?
 	baseDomain, subdomain, err := getBaseAndSubdomainFromFull(provision.Domain)
 	if err != nil {
 		return uow, fmt.Errorf("error separating domain, %v", err)
 	}
 
+	timeout := 5 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
 	cloudfrontDomain, err := c.dnsProvisioner.WaitAndGetDistribution(ctx, provision.CloudfrontID)
+	cancel()
 	if err != nil {
 		return uow, err
 	}

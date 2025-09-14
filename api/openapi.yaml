@@ -236,17 +236,12 @@ components:
         planID:
           type: integer
           format: uint8
-        userID:
-          type: string
-          format: uuid
-          example: "550e8400-e29b-41d4-a716-446655440000"
         fields:
           type: object
           description: json object with all widgets and fields of a site
           additionalProperties: true
       required:
         - templateID
-        - userID
         - planID
 
     CreateSiteResponse:

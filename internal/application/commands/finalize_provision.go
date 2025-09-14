@@ -2,7 +2,7 @@ package commands
 
 import (
 	"context"
-	"log/slog"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -38,11 +38,10 @@ func NewFinalizeProvision(
 func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.UoW, error) {
 	timeout := 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 	cfDomain, err := c.DNSProvisioner.WaitAndGetDistribution(ctx, event.DistributionID)
+	cancel()
 	if err != nil {
-		slog.Error("err waiting for deployment of distribution", "cf", err)
-		return nil, err
+		return nil, fmt.Errorf("err waiting for deployment of distribution, %v", err)
 	}
 	var baseDomain string
 	firstPart := strings.Index(event.Domain, ".")
@@ -54,11 +53,10 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 
 	timeout = 5 * time.Second
 	ctx, cancel = context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 	err = c.DNSProvisioner.CreateSubdomain(ctx, baseDomain, event.Domain, cfDomain)
+	cancel()
 	if err != nil {
-		slog.Error("err creating route53 subdomain", "r53", err)
-		return nil, err
+		return nil, fmt.Errorf("err creating route53 subdomain, %v", err)
 	}
 
 	uow := c.UOWFactory.GetUoW()
@@ -69,13 +67,13 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 	newStatus := consts.SiteStatusCreated
 	_, err = tx.Exec(context.Background(), "UPDATE builder.sites SET status = $1, updated_at = $2 WHERE id = $3", newStatus, time.Now(), event.SiteID)
 	if err != nil {
-		return uow, err
+		return uow, fmt.Errorf("error updating site status, %v", err)
 	}
 
 	_, err = tx.Exec(context.Background(), "UPDATE builder.provisions SET status = $1, updated_at = $2 WHERE site_id = $3",
 		consts.ProvisionStatusProvisioned, time.Now(), event.SiteID)
 	if err != nil {
-		return uow, err
+		return uow, fmt.Errorf("error updating provision's status, %v", err)
 	}
 
 	var userID string
@@ -86,10 +84,10 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 	err = tx.QueryRow(context.Background(), "SELECT s.creator_id, u.first_name, u.second_name "+
 		"FROM builder.sites s "+
 		"LEFT JOIN builder.users u ON s.creator_id = u.id "+
-		"WHERE id = $1", event.SiteID,
-	).Scan(&userID, mailData.CustomerFirstName, mailData.CustomerSecondName)
+		"WHERE s.id = $1", event.SiteID,
+	).Scan(&userID, &mailData.CustomerFirstName, &mailData.CustomerSecondName)
 	if err != nil {
-		return uow, err
+		return uow, fmt.Errorf("error getting mail data, %v", err)
 	}
 
 	sendMailEvent := events.SendMail{
@@ -99,7 +97,7 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 	}
 
 	if err = c.EventRepo.InsertEvent(tx, sendMailEvent); err != nil {
-		return uow, err
+		return uow, fmt.Errorf("error inserting mail event, %v", err)
 	}
 
 	return uow, nil

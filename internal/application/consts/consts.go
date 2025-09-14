@@ -2,9 +2,9 @@ package consts
 
 type SiteStatus string
 
-const SiteStatusInCreation SiteStatus = "SiteStatusInCreation"
-const SiteStatusAwaitingProvision SiteStatus = "SiteStatusAwaitingProvision"
-const SiteStatusCreated SiteStatus = "SiteStatusCreated"
+const SiteStatusInCreation SiteStatus = "InCreation"
+const SiteStatusAwaitingProvision SiteStatus = "AwaitingProvision"
+const SiteStatusCreated SiteStatus = "Created"
 const SiteStatusDeactivated SiteStatus = "Deactivated"
 const SiteStatusDeleted SiteStatus = "Deleted"
 

@@ -4,13 +4,14 @@ import (
 	"fmt"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 )
 
 type IdentityProvider struct {
 }
 
 type Identity struct {
-	UserID string
+	UserID uuid.UUID
 }
 
 func (p IdentityProvider) GetIdentity(tokenString string) (*Identity, error) {
@@ -26,6 +27,6 @@ func (p IdentityProvider) GetIdentity(tokenString string) (*Identity, error) {
 	}
 
 	return &Identity{
-		UserID: claims["sub"].(string),
+		UserID: claims["sub"].(uuid.UUID),
 	}, nil
 }

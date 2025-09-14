@@ -47,8 +47,8 @@ func NewAuth(uowFactory *dbs.UOWFactory, cfg *auth.OIDCConfig) *Auth {
 
 func (c *Auth) CreateSession(req dto.CreateSession) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-	defer cancel()
 	jwks, err := keyfunc.NewDefaultCtx(ctx, []string{c.cfg.IssuerURL + "/.well-known/jwks.json"})
+	cancel()
 	if err != nil {
 		return "", fmt.Errorf("failed to get JWKS: %v", err)
 	}
@@ -124,6 +124,11 @@ func (c *Auth) CreateSession(req dto.CreateSession) (string, error) {
 }
 
 func (c *Auth) GetIdentity(id uuid.UUID) (*auth.Identity, error) {
+	if c.cfg.Mode == "TEST" {
+		return &auth.Identity{
+			UserID: *c.cfg.TestUser,
+		}, nil
+	}
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {

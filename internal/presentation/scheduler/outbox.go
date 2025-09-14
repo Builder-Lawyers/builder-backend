@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -84,12 +85,8 @@ func (o *OutboxPoller) pollTable() {
 		return
 	}
 
-	timeout := 2 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
 	query := "SELECT * FROM builder.outbox WHERE status = 0 ORDER BY created_at FOR NO KEY UPDATE LIMIT $1"
-	rows, err := tx.Query(ctx, query, o.cfg.limit)
+	rows, err := tx.Query(context.Background(), query, o.cfg.limit)
 	if err != nil {
 		slog.Error("error in poller", "err", err)
 		return
@@ -133,6 +130,8 @@ func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
 		status = 1
 	)
 
+	slog.Info("Handling event", "event", outbox.Event, "id", outbox.ID)
+
 	switch outbox.Event {
 	case events.SiteAwaitingProvision{}.GetType():
 		event := db.MapOutboxModelToSiteAwaitingProvisionEvent(outbox)
@@ -175,28 +174,30 @@ func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
 		break
 	}
 
+	if err != nil {
+		slog.Error("error in handler", "event", outbox.Event, "id", outbox.ID, "err", err)
+	}
+
 	if uow == nil {
+		var errTx error
 		// open new transaction if there was no in event handler
 		uow = o.uowFactory.GetUoW()
-		tx, err = uow.Begin()
-		if err != nil {
-			return err
+		tx, errTx = uow.Begin()
+		if errTx != nil {
+			return errors.Join(err, errTx)
 		}
 	} else {
 		tx = uow.GetTx()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	_, err = tx.Exec(ctx, "UPDATE builder.outbox SET status = $1 WHERE id = $2", status, outbox.ID)
+	_, err = tx.Exec(context.Background(), "UPDATE builder.outbox SET status = $1 WHERE id = $2", status, outbox.ID)
 	if err != nil {
-		_ = uow.Rollback()
+		errRollback := uow.Rollback()
 		slog.Error("error in poller", "err", err)
-		return err
+		return errors.Join(err, errRollback)
 	}
 
-	if err = tx.Commit(ctx); err != nil {
+	if err = uow.Commit(); err != nil {
 		slog.Error("error in poller", "err", err)
 		return err
 	}

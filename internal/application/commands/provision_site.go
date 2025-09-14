@@ -101,8 +101,8 @@ func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (shared.UoW, 
 
 		domain = fmt.Sprintf("%v.%v", event.Domain, c.cfg.BaseDomain)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
 		distributionID, err := c.DNSProvisioner.MapCfDistributionToS3(ctx, "/sites/"+siteID, c.cfg.Defaults.S3Domain, domain, c.cfg.Defaults.CertARN)
+		cancel()
 		if err != nil {
 			return nil, err
 		}
@@ -129,8 +129,8 @@ func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (shared.UoW, 
 
 		domain = event.Domain
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
 		operationID, err := c.DNSProvisioner.RequestDomain(ctx, domain)
+		cancel()
 		if err != nil {
 			return nil, err
 		}

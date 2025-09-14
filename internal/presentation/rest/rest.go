@@ -201,7 +201,7 @@ func getSessionID(c *fiber.Ctx) (uuid.UUID, error) {
 
 	sessionID, err := uuid.Parse(cookie)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("error parsing id cookie", err)
+		return uuid.UUID{}, fmt.Errorf("error parsing id cookie %v", err)
 	}
 
 	return sessionID, nil

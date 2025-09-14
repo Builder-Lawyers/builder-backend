@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -71,6 +72,8 @@ func (c *SendMail) Handle(event events.SendMail) (shared.UoW, error) {
 	if err != nil {
 		return uow, err
 	}
+
+	slog.Info("mail sent", "id", mail.ID)
 
 	return uow, nil
 }

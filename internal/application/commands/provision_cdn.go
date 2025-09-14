@@ -47,9 +47,9 @@ func (c *ProvisionCDN) Handle(event events.ProvisionCDN) (shared.UoW, error) {
 
 	timeout := 3 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 	// TODO: verify here domain passed, if it is ok
 	distributionID, err := c.DNSProvisioner.MapCfDistributionToS3(ctx, "/sites/"+siteID, event.Domain, event.Domain, event.CertificateARN)
+	cancel()
 	if err != nil {
 		return nil, err
 	}
