@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/stretchr/testify/assert"
@@ -66,12 +67,13 @@ func TestMain(m *testing.M) {
 }
 
 func TestListFilesEmpty(t *testing.T) {
+	ctx := context.Background()
 	bucket := "sanity-web"
-	_, err := s3Client.client.CreateBucket(context.Background(), &s3.CreateBucketInput{Bucket: &bucket})
+	_, err := s3Client.client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: &bucket})
 	if err != nil {
 		log.Fatalf("Failed to create bucket %v", err)
 	}
-	files := s3Client.ListFiles(1, "")
+	files := s3Client.ListFiles(ctx, 1, &s3.ListObjectsV2Input{Bucket: aws.String(bucket)})
 	assert.Empty(t, files, "files found should be empty")
 
 }

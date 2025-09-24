@@ -28,7 +28,6 @@ import (
 
 type Payment struct {
 	uowFactory *dbs.UOWFactory
-	eventRepo  *repo.EventRepo
 	cfg        *PaymentConfig
 }
 
@@ -46,17 +45,16 @@ func NewPaymentConfig() *PaymentConfig {
 	}
 }
 
-func NewPayment(uowFactory *dbs.UOWFactory, eventRepo *repo.EventRepo, cfg *PaymentConfig) *Payment {
+func NewPayment(uowFactory *dbs.UOWFactory, cfg *PaymentConfig) *Payment {
 	stripe.Key = cfg.apiKey
 	stripe.SetHTTPClient(&http.Client{Timeout: 10 * time.Second})
 	return &Payment{
 		uowFactory: uowFactory,
-		eventRepo:  eventRepo,
 		cfg:        cfg,
 	}
 }
 
-func (c *Payment) CreatePayment(req *dto.CreatePaymentRequest, identity *auth.Identity) (string, error) {
+func (c *Payment) CreatePayment(ctx context.Context, req *dto.CreatePaymentRequest, identity *auth.Identity) (string, error) {
 
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
@@ -64,7 +62,7 @@ func (c *Payment) CreatePayment(req *dto.CreatePaymentRequest, identity *auth.Id
 		return "", err
 	}
 	var existingSubID string
-	err = tx.QueryRow(context.Background(), "SELECT subscription_id FROM builder.sites WHERE id = $1", req.SiteID).Scan(&existingSubID)
+	err = tx.QueryRow(ctx, "SELECT subscription_id FROM builder.sites WHERE id = $1", req.SiteID).Scan(&existingSubID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			slog.Info("There's no subscription for site yet", "siteID", req.SiteID)
@@ -74,7 +72,7 @@ func (c *Payment) CreatePayment(req *dto.CreatePaymentRequest, identity *auth.Id
 	}
 
 	var stripePlanID string
-	err = tx.QueryRow(context.Background(), "SELECT stripe_id FROM builder.payment_plans WHERE id = $1",
+	err = tx.QueryRow(ctx, "SELECT stripe_id FROM builder.payment_plans WHERE id = $1",
 		req.PlanID).Scan(&stripePlanID)
 	if err != nil {
 		return "", fmt.Errorf("error retrieving stripe price, %v", err)
@@ -98,9 +96,9 @@ func (c *Payment) CreatePayment(req *dto.CreatePaymentRequest, identity *auth.Id
 		return s.ID, nil
 	}
 
-	err = tx.Commit(context.Background())
+	err = uow.Commit()
 	if err != nil {
-		return "", fmt.Errorf("error commiting tx, %v", err)
+		return "", err
 	}
 
 	// TODO: if it is a simple plan, create a subscription with free trial and no payment method details requested
@@ -141,7 +139,7 @@ func (c *Payment) CreatePayment(req *dto.CreatePaymentRequest, identity *auth.Id
 	return s.ClientSecret, nil
 }
 
-func (c *Payment) GetPaymentInfo(sessionID string) (*dto.PaymentStatusResponse, error) {
+func (c *Payment) GetPaymentInfo(ctx context.Context, sessionID string) (*dto.PaymentStatusResponse, error) {
 	//params := &stripe.CheckoutSessionParams{}
 	//params.AddExpand("payment_intent")
 	s, err := session.Get(sessionID, &stripe.CheckoutSessionParams{})
@@ -165,7 +163,7 @@ func (c *Payment) GetPaymentInfo(sessionID string) (*dto.PaymentStatusResponse, 
 	}, nil
 }
 
-func (c *Payment) Webhook(req []byte, stripeHeader string) error {
+func (c *Payment) Webhook(ctx context.Context, req []byte, stripeHeader string) error {
 	event, err := webhook.ConstructEvent(req, stripeHeader, c.cfg.webhookKey)
 	if err != nil {
 		return fmt.Errorf("error creating event, %v", err)
@@ -176,26 +174,25 @@ func (c *Payment) Webhook(req []byte, stripeHeader string) error {
 	switch event.Type {
 
 	case "customer.subscription.trial_will_end":
-		return c.handleTrialEnds(event)
+		return c.handleTrialEnds(ctx, event)
 
 	case "invoice.payment_failed":
-		return c.handlePaymentFailed(event)
+		return c.handlePaymentFailed(ctx, event)
 
 	default:
 		return fmt.Errorf("Unhandled event type: %s\n", event.Type)
 	}
 
-	return nil
 }
 
-func (c *Payment) handleTrialEnds(event stripe.Event) error {
+func (c *Payment) handleTrialEnds(ctx context.Context, event stripe.Event) error {
 	var subscription stripe.Subscription
 	err := json.Unmarshal(event.Data.Raw, &subscription)
 	if err != nil {
 		return fmt.Errorf("error parsing subscription, %v", err)
 	}
 
-	fmt.Printf("Trial will end for subscription %s (customer %s)", subscription.ID, subscription.Customer.ID)
+	slog.Info("Trial will end for subscription", "sub", subscription.ID, "customer", subscription.Customer.ID)
 
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
@@ -205,7 +202,7 @@ func (c *Payment) handleTrialEnds(event stripe.Event) error {
 	var userID string
 	var firstName string
 	var secondName string
-	err = tx.QueryRow(context.Background(), "SELECT id, first_name, second_name FROM builder.users WHERE stripe_id = $1",
+	err = tx.QueryRow(ctx, "SELECT id, first_name, second_name FROM builder.users WHERE stripe_id = $1",
 		subscription.Customer.ID).Scan(&userID, &firstName, &secondName)
 	if err != nil {
 		return fmt.Errorf("err finding user, %v", err)
@@ -235,7 +232,8 @@ func (c *Payment) handleTrialEnds(event stripe.Event) error {
 		Subject: mailData.GetSubject(),
 		Data:    mailData,
 	}
-	err = c.eventRepo.InsertEvent(tx, sendMailEvent)
+	eventRepo := repo.NewEventRepo(tx)
+	err = eventRepo.InsertEvent(ctx, sendMailEvent)
 	if err != nil {
 		return fmt.Errorf("failed to send an email, %v", err)
 	}
@@ -250,7 +248,7 @@ func (c *Payment) handleTrialEnds(event stripe.Event) error {
 	return nil
 }
 
-func (c *Payment) handlePaymentFailed(event stripe.Event) error {
+func (c *Payment) handlePaymentFailed(ctx context.Context, event stripe.Event) error {
 
 	// TODO: before deactivating site totally, send an email warning a user that site is about to be deactivated
 	// if user doesn't retry payment (if it was a failure in payment)
@@ -289,7 +287,7 @@ func (c *Payment) handlePaymentFailed(event stripe.Event) error {
 
 	var siteID uint64
 	var siteStatus consts.SiteStatus
-	err = tx.QueryRow(context.Background(), "SELECT id, status FROM builder.sites WHERE subscription_id = $1",
+	err = tx.QueryRow(ctx, "SELECT id, status FROM builder.sites WHERE subscription_id = $1",
 		sub.ID).Scan(&siteID, &siteStatus)
 	if err != nil {
 		return fmt.Errorf("error getting site for subscription, %v", err)
@@ -297,12 +295,12 @@ func (c *Payment) handlePaymentFailed(event stripe.Event) error {
 
 	if siteStatus == consts.SiteStatusCreated {
 		deactivateSite := events.DeactivateSite{
-			SubscriptionID: sub.ID,
-			SiteID:         siteID,
-			Reason:         "Payment for subscription wasn't successful",
+			SiteID: siteID,
+			Reason: "Payment for subscription wasn't successful",
 		}
 
-		err = c.eventRepo.InsertEvent(tx, deactivateSite)
+		eventRepo := repo.NewEventRepo(tx)
+		err = eventRepo.InsertEvent(ctx, deactivateSite)
 		if err != nil {
 			return fmt.Errorf("error creating event, %v", err)
 		}

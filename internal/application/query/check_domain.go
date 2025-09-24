@@ -1,6 +1,8 @@
 package query
 
 import (
+	"context"
+
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
 )
 
@@ -14,6 +16,6 @@ func NewCheckDomain(dns *dns.DNSProvisioner) *CheckDomain {
 	}
 }
 
-func (c *CheckDomain) Query(domain string) (bool, error) {
-	return c.CheckAvailability(domain)
+func (c *CheckDomain) Query(ctx context.Context, domain string) (bool, error) {
+	return c.CheckAvailability(ctx, domain)
 }

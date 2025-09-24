@@ -26,7 +26,7 @@ func NewSendMail(server *mail.MailServer, uowFactory *dbs.UOWFactory) *SendMail 
 	return &SendMail{server: server, uowFactory: uowFactory}
 }
 
-func (c *SendMail) Handle(event events.SendMail) (shared.UoW, error) {
+func (c *SendMail) Handle(ctx context.Context, event events.SendMail) (shared.UoW, error) {
 	mailData, err := mapToMailData(event)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func (c *SendMail) Handle(event events.SendMail) (shared.UoW, error) {
 		return nil, err
 	}
 	var email string
-	err = tx.QueryRow(context.Background(), "SELECT email FROM builder.users WHERE id = $1", event.UserID).Scan(&email)
+	err = tx.QueryRow(ctx, "SELECT email FROM builder.users WHERE id = $1", event.UserID).Scan(&email)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (c *SendMail) Handle(event events.SendMail) (shared.UoW, error) {
 	recipients = append(recipients, email)
 
 	var mailTemplate string
-	err = tx.QueryRow(context.Background(), "SELECT content FROM builder.mail_templates WHERE type = $1", mailData.GetMailType()).Scan(&mailTemplate)
+	err = tx.QueryRow(ctx, "SELECT content FROM builder.mail_templates WHERE type = $1", mailData.GetMailType()).Scan(&mailTemplate)
 	if err != nil {
 		return uow, err
 	}
@@ -62,7 +62,7 @@ func (c *SendMail) Handle(event events.SendMail) (shared.UoW, error) {
 		Content:    htmlBody,
 		SentAt:     time.Now(),
 	}
-	_, err = tx.Exec(context.Background(), "INSERT INTO builder.mails(type, recipients, subject, content, sent_at) VALUES ($1,$2,$3,$4,$5)",
+	_, err = tx.Exec(ctx, "INSERT INTO builder.mails(type, recipients, subject, content, sent_at) VALUES ($1,$2,$3,$4,$5)",
 		mail.MailType, mail.Recipients, mail.Subject, mail.Content, mail.SentAt,
 	)
 	if err != nil {

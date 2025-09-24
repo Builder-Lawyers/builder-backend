@@ -17,7 +17,6 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/certs"
 	ai "github.com/Builder-Lawyers/builder-backend/internal/infra/client/openai"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"
-	"github.com/Builder-Lawyers/builder-backend/internal/infra/db/repo"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/mail"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/storage"
@@ -36,13 +35,13 @@ func Init() {
 	dbConfig := db.NewConfig()
 	pool, err := pgxpool.New(context.Background(), dbConfig.GetDSN())
 	if err != nil {
-		log.Fatalf("failed to create pool: %v", err)
+		log.Panicf("failed to create pool: %v", err)
+	}
+	err = pool.Ping(context.Background())
+	if err != nil {
+		log.Panicf("failed to connect to db: %v", err)
 	}
 	uowFactory := db.NewUoWFactory(pool)
-
-	// Repos
-	eventRepo := repo.NewEventRepo()
-	provisionRepo := repo.NewProvisionRepo()
 
 	// FE Build
 	templateBuild := build.NewTemplateBuild()
@@ -72,17 +71,18 @@ func Init() {
 
 	handlers := &application.Handlers{
 		CreateSite:        commands.NewCreateSite(uowFactory),
-		UpdateSite:        commands.NewUpdateSite(uowFactory, eventRepo),
+		UpdateSite:        commands.NewUpdateSite(uowFactory),
 		EnrichContent:     commands.NewEnrichContent(ai.NewOpenAIClient(ai.NewOpenAIConfig())),
-		GetSite:           query.NewGetSite(provisionConfig, uowFactory, provisionRepo, dnsProvisioner),
-		ProvisionSite:     commands.NewProvisionSite(provisionConfig, uowFactory, eventRepo, provisionRepo, s3, templateBuild, dnsProvisioner, acmCerts),
-		ProvisionCDN:      commands.NewProvisionCDN(provisionConfig, uowFactory, provisionRepo, dnsProvisioner),
-		FinalizeProvision: commands.NewFinalizeProvision(provisionConfig, uowFactory, dnsProvisioner, eventRepo),
-		DeactivateSite:    commands.NewDeactivateSite(uowFactory, dnsProvisioner, provisionRepo, eventRepo),
+		GetSite:           query.NewGetSite(provisionConfig, uowFactory, dnsProvisioner),
+		GetTemplate:       query.NewGetTemplate(uowFactory, s3, provisionConfig),
+		ProvisionSite:     commands.NewProvisionSite(provisionConfig, uowFactory, s3, templateBuild, dnsProvisioner, acmCerts),
+		ProvisionCDN:      commands.NewProvisionCDN(provisionConfig, uowFactory, dnsProvisioner),
+		FinalizeProvision: commands.NewFinalizeProvision(provisionConfig, uowFactory, dnsProvisioner),
+		DeactivateSite:    commands.NewDeactivateSite(uowFactory, dnsProvisioner),
 		Auth:              commands.NewAuth(uowFactory, oidcConfig),
 		CheckDomain:       query.NewCheckDomain(dnsProvisioner),
 		SendMail:          commands.NewSendMail(mailServer, uowFactory),
-		Payment:           commands.NewPayment(uowFactory, eventRepo, paymentConfig),
+		Payment:           commands.NewPayment(uowFactory, paymentConfig),
 	}
 	handler := rest.NewServer(handlers)
 	app := fiber.New(fiber.Config{
@@ -112,6 +112,7 @@ func Init() {
 	_ = <-c
 	fmt.Println("Gracefully shutting down...")
 	_ = app.Shutdown()
+	outboxPoller.Stop()
 
 	fmt.Println("Running cleanup tasks...")
 

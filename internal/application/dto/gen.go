@@ -96,6 +96,13 @@ type PaymentStatusResponse struct {
 // StripeWebhookRequest defines model for StripeWebhookRequest.
 type StripeWebhookRequest map[string]interface{}
 
+// TemplateInfo defines model for TemplateInfo.
+type TemplateInfo struct {
+	// Structure pages.json file
+	Structure    string `json:"structure"`
+	TemplateName string `json:"templateName"`
+}
+
 // UpdateSiteRequest defines model for UpdateSiteRequest.
 type UpdateSiteRequest struct {
 	Domain     *string                      `json:"domain,omitempty"`

@@ -19,4 +19,5 @@ type Handlers struct {
 	*commands.Payment
 	*query.GetSite
 	*query.CheckDomain
+	*query.GetTemplate
 }

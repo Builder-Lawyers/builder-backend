@@ -83,6 +83,26 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+    delete:
+      summary: Delete a provisioned site
+      operationId: deleteSite
+      tags:
+        - Sites
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint64
+      responses:
+        '204':
+          description: Site deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /ai/enrich:
     post:
       summary: Enrich some user provided info using AI
@@ -100,6 +120,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EnrichContentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /template/{id}:
+    get:
+      summary: Gets template info
+      description: Returns template info such as pages.json
+      operationId: getTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: uint8
+      responses:
+        '200':
+          description: Template Info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateInfo'
         '400':
           $ref: '#/components/responses/BadRequestError'
         '500':
@@ -332,6 +376,20 @@ components:
       required:
         - healthCheckStatus
         - createdAt
+
+    TemplateInfo:
+      type: object
+      properties:
+        templateName:
+          type: string
+          format: string
+        structure:
+          type: string
+          format: string
+          description: pages.json file
+      required:
+        - templateName
+        - structure
 
     DomainAvailability:
       type: object

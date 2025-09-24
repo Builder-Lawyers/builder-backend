@@ -33,7 +33,7 @@ func (s *Server) CreateSite(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
-	siteID, err := s.handlers.CreateSite.Execute(&req, identity)
+	siteID, err := s.handlers.CreateSite.Execute(c.UserContext(), &req, identity)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -55,7 +55,7 @@ func (s *Server) UpdateSite(c *fiber.Ctx, id uint64) error {
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
-	updatedSiteID, err := s.handlers.UpdateSite.Execute(id, &req, identity)
+	updatedSiteID, err := s.handlers.UpdateSite.Execute(c.UserContext(), id, &req, identity)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -67,13 +67,28 @@ func (s *Server) UpdateSite(c *fiber.Ctx, id uint64) error {
 	return c.Status(fiber.StatusOK).JSON(resp)
 }
 
+func (s *Server) DeleteSite(c *fiber.Ctx, id uint64) error {
+
+	identity, err := s.getIdentity(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	err = s.handlers.DeleteSite.Execute(c.UserContext(), id, identity)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 func (s *Server) EnrichContent(c *fiber.Ctx) error {
 	var req dto.EnrichContentRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	enrichContent, err := s.handlers.EnrichContent.Execute(&req)
+	enrichContent, err := s.handlers.EnrichContent.Execute(c.UserContext(), &req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -85,9 +100,19 @@ func (s *Server) EnrichContent(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(resp)
 }
 
+func (s *Server) GetTemplate(c *fiber.Ctx, id uint8) error {
+
+	templateInfo, err := s.handlers.GetTemplate.Query(c.UserContext(), id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(templateInfo)
+}
+
 func (s *Server) CheckDomain(c *fiber.Ctx, domain string) error {
 
-	available, err := s.handlers.CheckDomain.Query(domain)
+	available, err := s.handlers.CheckDomain.Query(c.UserContext(), domain)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -104,7 +129,7 @@ func (s *Server) GetSite(c *fiber.Ctx, id uint64) error {
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
-	resp, err := s.handlers.GetSite.Query(id, identity)
+	resp, err := s.handlers.GetSite.Query(c.UserContext(), id, identity)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -118,7 +143,7 @@ func (s *Server) CreateSession(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	sessionID, err := s.handlers.Auth.CreateSession(req)
+	sessionID, err := s.handlers.Auth.CreateSession(c.UserContext(), req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -145,7 +170,7 @@ func (s *Server) CreatePayment(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
-	clientSecret, err := s.handlers.Payment.CreatePayment(&req, identity)
+	clientSecret, err := s.handlers.Payment.CreatePayment(c.UserContext(), &req, identity)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -159,7 +184,7 @@ func (s *Server) CreatePayment(c *fiber.Ctx) error {
 
 func (s *Server) GetPaymentStatus(c *fiber.Ctx, id string) error {
 
-	paymentInfo, err := s.handlers.Payment.GetPaymentInfo(id)
+	paymentInfo, err := s.handlers.Payment.GetPaymentInfo(c.UserContext(), id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -172,7 +197,7 @@ func (s *Server) HandleEvent(c *fiber.Ctx) error {
 	slog.Info("ARRIVED")
 	signatureHeader := c.Get("Stripe-Signature")
 
-	err := s.handlers.Payment.Webhook(c.Body(), signatureHeader)
+	err := s.handlers.Payment.Webhook(c.UserContext(), c.Body(), signatureHeader)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -185,7 +210,7 @@ func (s *Server) getIdentity(c *fiber.Ctx) (*auth.Identity, error) {
 	if err != nil {
 		return nil, err
 	}
-	identity, err := s.handlers.Auth.GetIdentity(session)
+	identity, err := s.handlers.Auth.GetIdentity(c.UserContext(), session)
 	if err != nil {
 		return nil, err
 	}

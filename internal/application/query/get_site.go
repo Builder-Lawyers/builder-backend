@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
-	"github.com/Builder-Lawyers/builder-backend/internal/application/interfaces"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/db/repo"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 )
@@ -19,58 +19,69 @@ import (
 type GetSite struct {
 	cfg *config.ProvisionConfig
 	*dbs.UOWFactory
-	interfaces.ProvisionRepo
 	*dns.DNSProvisioner
-	http.Client
+	client http.Client
 }
 
 func NewGetSite(
-	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, provisionRepo interfaces.ProvisionRepo, dns *dns.DNSProvisioner,
+	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, dns *dns.DNSProvisioner,
 ) *GetSite {
 	return &GetSite{
 		cfg,
 		factory,
-		provisionRepo,
 		dns,
 		http.Client{Timeout: 4 * time.Second},
 	}
 }
 
-func (c *GetSite) Query(siteIDParam uint64, identity *auth.Identity) (dto.GetSiteResponse, error) {
+func (c *GetSite) Query(ctx context.Context, siteIDParam uint64, identity *auth.Identity) (*dto.GetSiteResponse, error) {
 	// TODO: check if user owns this site, etc...
 	siteID := strconv.FormatUint(siteIDParam, 10)
 	var site db.Site
 
 	uow := c.UOWFactory.GetUoW()
 	tx, err := uow.Begin()
-	err = tx.QueryRow(context.Background(), "SELECT creator_id, template_id, status, fields from builder.sites WHERE id = $1", siteID).Scan(
+	if err != nil {
+		return nil, err
+	}
+	err = tx.QueryRow(ctx, "SELECT creator_id, template_id, status, fields from builder.sites WHERE id = $1", siteID).Scan(
 		&site.CreatorID,
 		&site.TemplateID,
 		&site.Status,
 		&site.Fields,
 	)
 	if err != nil {
-		return dto.GetSiteResponse{}, err
+		return nil, err
 	}
 
-	var healthCheckStatus dto.GetSiteResponseHealthCheckStatus
-	provision, err := c.ProvisionRepo.GetProvisionByID(tx, siteIDParam)
+	response := dto.GetSiteResponse{
+		HealthCheckStatus: dto.Healthy,
+		CreatedAt:         site.CreatedAt.String(),
+	}
+
+	provisionRepo := repo.NewProvisionRepo(tx)
+	provision, err := provisionRepo.GetProvisionByID(ctx, siteIDParam)
 	if err != nil {
 		slog.Error("site is not provisioned yet, %v", "healthcheck", site)
-		healthCheckStatus = dto.NotProvisioned
+		response.HealthCheckStatus = dto.NotProvisioned
+		return &response, err
 	}
-	resp, err := c.Client.Get("https://" + provision.Domain)
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://"+provision.Domain, http.NoBody)
 	if err != nil {
-		slog.Error("site is unreachable, %v", "healthcheck", site)
-		healthCheckStatus = dto.Unhealthy
+		slog.Error("error creating request to provisioned site", siteID)
+		return nil, err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		slog.Error("site is unreachable", "siteID", siteID)
+		response.HealthCheckStatus = dto.Unhealthy
+		return &response, err
 	}
 	if resp.StatusCode != 200 {
-		slog.Error("error response status from site, %v", "healthcheck", site)
-		healthCheckStatus = dto.Unhealthy
+		slog.Error("error response status from site", "siteID", siteID)
+		response.HealthCheckStatus = dto.Unhealthy
+		return &response, err
 	}
 
-	return dto.GetSiteResponse{
-		HealthCheckStatus: healthCheckStatus,
-		CreatedAt:         site.CreatedAt.String(),
-	}, nil
+	return &response, nil
 }

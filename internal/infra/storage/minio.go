@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,7 +35,7 @@ func initClient(config aws.Config) *s3.Client {
 	return client
 }
 
-func (s *Storage) UploadFile(key string, contentType *string, body io.Reader) error {
+func (s *Storage) UploadFile(ctx context.Context, key string, contentType *string, body io.Reader) error {
 	var ct string
 
 	data, err := io.ReadAll(body)
@@ -54,7 +54,7 @@ func (s *Storage) UploadFile(key string, contentType *string, body io.Reader) er
 	} else {
 		ct = *contentType
 	}
-	_, err = s.client.PutObject(context.Background(), &s3.PutObjectInput{
+	_, err = s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(s.bucket),
 		Key:           aws.String(key),
 		Body:          bytes.NewReader(data),
@@ -67,7 +67,7 @@ func (s *Storage) UploadFile(key string, contentType *string, body io.Reader) er
 	return nil
 }
 
-func (s *Storage) ListFiles(limit int32, input *s3.ListObjectsV2Input) []string {
+func (s *Storage) ListFiles(ctx context.Context, limit int32, input *s3.ListObjectsV2Input) []string {
 	input.Bucket = &s.bucket
 
 	p := s3.NewListObjectsV2Paginator(s.client, input, func(o *s3.ListObjectsV2PaginatorOptions) {
@@ -78,9 +78,9 @@ func (s *Storage) ListFiles(limit int32, input *s3.ListObjectsV2Input) []string 
 	var files []string
 	for p.HasMorePages() {
 		i++
-		page, err := p.NextPage(context.TODO())
+		page, err := p.NextPage(ctx)
 		if err != nil {
-			log.Fatalf("failed to get page %v, %v", i, err)
+			slog.Error("failed to get page ", "err", err)
 		}
 		for _, obj := range page.Contents {
 			files = append(files, *obj.Key)
@@ -89,13 +89,35 @@ func (s *Storage) ListFiles(limit int32, input *s3.ListObjectsV2Input) []string 
 	return files
 }
 
-func (s *Storage) DownloadFiles(keys []string, destination, pathAfter string) error {
+func (s *Storage) GetFile(ctx context.Context, key string) ([]byte, error) {
+	params := &s3.GetObjectInput{
+		Bucket: &s.bucket,
+		Key:    aws.String(key),
+	}
+	resp, err := s.client.GetObject(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("error downloading file %v: %v", key, err)
+	}
+
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file contents, %v", err)
+	}
+
+	return data, nil
+}
+
+func (s *Storage) DownloadFiles(ctx context.Context, keys []string, destination, pathAfter string) error {
 	for _, key := range keys {
 		params := &s3.GetObjectInput{
 			Bucket: &s.bucket,
 			Key:    aws.String(key),
 		}
-		resp, err := s.client.GetObject(context.Background(), params)
+		resp, err := s.client.GetObject(ctx, params)
 		if err != nil {
 			return fmt.Errorf("error downloading key %s: %w", key, err)
 		}
@@ -115,7 +137,6 @@ func (s *Storage) DownloadFiles(keys []string, destination, pathAfter string) er
 
 func (s *Storage) readAndCopyObjectTo(content io.ReadCloser, destination string) error {
 	//slog.Info("saving file to", "dest", destination)
-	defer content.Close()
 	if err := os.MkdirAll(filepath.Dir(destination), os.ModePerm); err != nil {
 		return fmt.Errorf("error creating directories for %s: %w", destination, err)
 	}
@@ -123,7 +144,11 @@ func (s *Storage) readAndCopyObjectTo(content io.ReadCloser, destination string)
 	if err != nil {
 		return fmt.Errorf("error creating file %s: %w", destination, err)
 	}
-	defer outFile.Close()
+
+	defer func() {
+		_ = content.Close()
+		_ = outFile.Close()
+	}()
 
 	_, err = io.Copy(outFile, content)
 	if err != nil {

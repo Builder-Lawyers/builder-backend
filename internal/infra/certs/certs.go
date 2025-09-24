@@ -18,16 +18,16 @@ func NewACMCertificates(cfg aws.Config) *ACMCertificates {
 	})}
 }
 
-func (a *ACMCertificates) GetARN(arn string) (string, error) {
-	res, err := a.client.GetCertificate(context.Background(), &acm.GetCertificateInput{CertificateArn: aws.String(arn)})
+func (a *ACMCertificates) GetARN(ctx context.Context, arn string) (string, error) {
+	res, err := a.client.GetCertificate(ctx, &acm.GetCertificateInput{CertificateArn: aws.String(arn)})
 	if err != nil {
 		return "", err
 	}
 	return aws.ToString(res.Certificate), nil
 }
 
-func (a *ACMCertificates) CreateCertificate(domain string) (string, error) {
-	res, err := a.client.RequestCertificate(context.Background(), &acm.RequestCertificateInput{
+func (a *ACMCertificates) CreateCertificate(ctx context.Context, domain string) (string, error) {
+	res, err := a.client.RequestCertificate(ctx, &acm.RequestCertificateInput{
 		DomainName:       aws.String(domain),
 		ValidationMethod: types.ValidationMethodDns,
 	})

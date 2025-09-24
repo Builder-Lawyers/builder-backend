@@ -1,6 +1,7 @@
 package build
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"os"
@@ -17,13 +18,13 @@ func NewTemplateBuild() *TemplateBuild {
 }
 
 // To run this, container running application has to have npm installed and "npm i -g pnpm"
-func (b *TemplateBuild) RunFrontendBuild(path string) (string, error) {
+func (b *TemplateBuild) RunFrontendBuild(ctx context.Context, path string) (string, error) {
 	templatesRootDir := filepath.Dir(path)
 	if len(path) != 0 {
 		log.Println("Valid dir")
 	}
 	// TODO: first check if node modules exist, then run build or first install
-	build := createProcess(path, "npm run build")
+	build := createProcess(ctx, path, "npm run build")
 	err := build.Start()
 	if err != nil {
 		slog.Error("failed to start npm run build: %v", "build", err)
@@ -34,7 +35,7 @@ func (b *TemplateBuild) RunFrontendBuild(path string) (string, error) {
 	err = build.Wait()
 	if err != nil {
 		slog.Error("npm run build exited with error: %v", "build", err)
-		installDeps := createProcess(templatesRootDir, "pnpm i")
+		installDeps := createProcess(ctx, templatesRootDir, "pnpm i")
 
 		err = installDeps.Start()
 		if err != nil {
@@ -47,7 +48,7 @@ func (b *TemplateBuild) RunFrontendBuild(path string) (string, error) {
 			return "", err
 		}
 
-		build = createProcess(path, "npm run build")
+		build = createProcess(ctx, path, "npm run build")
 		err = build.Start()
 		if err != nil {
 			slog.Error("failed to start npm run build: %v", "build", err)
@@ -65,10 +66,10 @@ func (b *TemplateBuild) RunFrontendBuild(path string) (string, error) {
 	return path + "/dist", nil
 }
 
-func createProcess(dir string, command string) *exec.Cmd {
+func createProcess(ctx context.Context, dir string, command string) *exec.Cmd {
 	log.Println(command)
 	params := strings.Split(command, " ")
-	proc := exec.Command(params[0], params[1:]...)
+	proc := exec.CommandContext(ctx, params[0], params[1:]...)
 	proc.Dir = dir
 	proc.Stdout = os.Stdout
 	proc.Stderr = os.Stderr

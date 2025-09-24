@@ -15,11 +15,11 @@ import (
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
-	"github.com/Builder-Lawyers/builder-backend/internal/application/interfaces"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/build"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/certs"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/db/repo"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/storage"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
@@ -31,8 +31,6 @@ import (
 type ProvisionSite struct {
 	cfg *config.ProvisionConfig
 	*dbs.UOWFactory
-	interfaces.EventRepo
-	interfaces.ProvisionRepo
 	*storage.Storage
 	*build.TemplateBuild
 	*dns.DNSProvisioner
@@ -40,14 +38,12 @@ type ProvisionSite struct {
 }
 
 func NewProvisionSite(
-	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, eventRepo interfaces.EventRepo, provisionRepo interfaces.ProvisionRepo,
-	storage *storage.Storage, build *build.TemplateBuild, dns *dns.DNSProvisioner, certs *certs.ACMCertificates,
+	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, storage *storage.Storage,
+	build *build.TemplateBuild, dns *dns.DNSProvisioner, certs *certs.ACMCertificates,
 ) *ProvisionSite {
 	return &ProvisionSite{
 		cfg,
 		factory,
-		eventRepo,
-		provisionRepo,
 		storage,
 		build,
 		dns,
@@ -60,14 +56,14 @@ func NewProvisionSite(
 // check if node_modules are installed, install if not
 // build to dist folder
 // upload dist folder to s3
-func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (shared.UoW, error) {
+func (c *ProvisionSite) Handle(ctx context.Context, event events.SiteAwaitingProvision) (shared.UoW, error) {
 	siteID := strconv.FormatUint(event.SiteID, 10)
-	err := c.downloadTemplate(event.TemplateName)
+	err := c.downloadTemplate(ctx, event.TemplateName)
 	if err != nil {
 		return nil, err
 	}
 	// idempotent execution - check if provisioned site static content already exists
-	existingFiles := c.Storage.ListFiles(1, &s3.ListObjectsV2Input{
+	existingFiles := c.Storage.ListFiles(ctx, 1, &s3.ListObjectsV2Input{
 		Prefix: aws.String(siteID),
 	})
 	if len(existingFiles) > 0 {
@@ -82,13 +78,13 @@ func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (shared.UoW, 
 	}
 
 	slog.Info("Building")
-	buildPath, err := c.TemplateBuild.RunFrontendBuild(templatePath)
+	buildPath, err := c.TemplateBuild.RunFrontendBuild(ctx, templatePath)
 	if err != nil {
 		return nil, err
 	}
 	cleanBuild(customizeJsonPath)
 
-	if err = c.uploadFiles("sites/"+siteID, event.TemplateName, buildPath); err != nil {
+	if err = c.uploadFiles(ctx, "sites/"+siteID, event.TemplateName, buildPath); err != nil {
 		return nil, err
 	}
 
@@ -100,8 +96,8 @@ func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (shared.UoW, 
 	case consts.DefaultDomain:
 
 		domain = fmt.Sprintf("%v.%v", event.Domain, c.cfg.BaseDomain)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		distributionID, err := c.DNSProvisioner.MapCfDistributionToS3(ctx, "/sites/"+siteID, c.cfg.Defaults.S3Domain, domain, c.cfg.Defaults.CertARN)
+		timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		distributionID, err := c.DNSProvisioner.MapCfDistributionToS3(timeoutCtx, "/sites/"+siteID, c.cfg.Defaults.S3Domain, domain, c.cfg.Defaults.CertARN)
 		cancel()
 		if err != nil {
 			return nil, err
@@ -128,14 +124,14 @@ func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (shared.UoW, 
 	case consts.SeparateDomain:
 
 		domain = event.Domain
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		operationID, err := c.DNSProvisioner.RequestDomain(ctx, domain)
+		timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		operationID, err := c.DNSProvisioner.RequestDomain(timeoutCtx, domain)
 		cancel()
 		if err != nil {
 			return nil, err
 		}
 		// for now is a FQDN, maybe do with asterisk like a *.baseDomain?
-		certificateARN, err := c.ACMCertificates.CreateCertificate(domain)
+		certificateARN, err := c.ACMCertificates.CreateCertificate(ctx, domain)
 		if err != nil {
 			return nil, err
 		}
@@ -169,11 +165,13 @@ func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (shared.UoW, 
 		return nil, err
 	}
 
-	err = c.EventRepo.InsertEvent(tx, newEvent)
+	eventRepo := repo.NewEventRepo(tx)
+	err = eventRepo.InsertEvent(ctx, newEvent)
 	if err != nil {
 		return uow, err
 	}
-	err = c.ProvisionRepo.InsertProvision(tx, newProvision)
+	provisionRepo := repo.NewProvisionRepo(tx)
+	err = provisionRepo.InsertProvision(ctx, newProvision)
 	if err != nil {
 		return uow, err
 	}
@@ -181,7 +179,8 @@ func (c *ProvisionSite) Handle(event events.SiteAwaitingProvision) (shared.UoW, 
 	return uow, nil
 }
 
-func (c *ProvisionSite) uploadFiles(siteID, templateName, dir string) error {
+// Uploads file from a filesystem path to a s3 prefix
+func (c *ProvisionSite) uploadFiles(ctx context.Context, siteID, templateName, dir string) error {
 	files := readFilesFromDir(dir)
 	for _, f := range files {
 		file, err := os.Open(f)
@@ -192,7 +191,7 @@ func (c *ProvisionSite) uploadFiles(siteID, templateName, dir string) error {
 		if err != nil {
 			return fmt.Errorf("malformed filepath, %s: %v", f, err)
 		}
-		err = c.Storage.UploadFile(siteID+parts[1], nil, file)
+		err = c.Storage.UploadFile(ctx, siteID+parts[1], nil, file)
 		if err != nil {
 			return fmt.Errorf("can't put object %v", err)
 		}
@@ -204,7 +203,7 @@ func (c *ProvisionSite) uploadFiles(siteID, templateName, dir string) error {
 	return nil
 }
 
-func (c *ProvisionSite) downloadTemplate(templateName string) error {
+func (c *ProvisionSite) downloadTemplate(ctx context.Context, templateName string) error {
 	// can it download templates from s3?
 	targetTemplate := filepath.Join(c.cfg.TemplatesFolder, templateName)
 	exists, err := dirExists(targetTemplate)
@@ -227,11 +226,12 @@ func (c *ProvisionSite) downloadTemplate(templateName string) error {
 		return err
 	}
 	slog.Info("Created folders for templates")
-	err = c.downloadMissingRootFiles(c.cfg.BuildFolder, c.cfg.BucketPath)
+	err = c.downloadMissingRootFiles(ctx, c.cfg.BuildFolder, c.cfg.BucketPath)
 	if err != nil {
 		return err
 	}
-	err = c.downloadMissingTemplateFiles(targetTemplate, fmt.Sprintf("%v%v/%v", c.cfg.BucketPath, "templates", templateName))
+	bucketPath := fmt.Sprintf("%v%v/%v", c.cfg.BucketPath, "templates", templateName)
+	err = c.downloadMissingTemplateFiles(ctx, targetTemplate, bucketPath)
 	if err != nil {
 		return err
 	}
@@ -250,14 +250,14 @@ func (c *ProvisionSite) downloadTemplate(templateName string) error {
 	return nil
 }
 
-func (c *ProvisionSite) downloadMissingRootFiles(path, bucketPath string) error {
+func (c *ProvisionSite) downloadMissingRootFiles(ctx context.Context, path, bucketPath string) error {
 	dir, err := os.ReadDir(path)
 	if err != nil {
 		return err
 	}
 	if len(dir) == 1 { // if only templates folder is present
 		slog.Info("directory %v is empty, downloading sources", "downloadTemplate", path)
-		files := c.Storage.ListFiles(100, &s3.ListObjectsV2Input{
+		files := c.Storage.ListFiles(ctx, 100, &s3.ListObjectsV2Input{
 			Prefix: aws.String(bucketPath),
 		})
 		filesToDownload := make([]string, 0)
@@ -268,7 +268,7 @@ func (c *ProvisionSite) downloadMissingRootFiles(path, bucketPath string) error 
 			}
 			filesToDownload = append(filesToDownload, file)
 		}
-		err = c.Storage.DownloadFiles(filesToDownload, path, bucketPath)
+		err = c.Storage.DownloadFiles(ctx, filesToDownload, path, bucketPath)
 		if err != nil {
 			slog.Error("error downloading template's sources %v", "template", err)
 			return err
@@ -278,17 +278,17 @@ func (c *ProvisionSite) downloadMissingRootFiles(path, bucketPath string) error 
 	return nil
 }
 
-func (c *ProvisionSite) downloadMissingTemplateFiles(path, bucketPath string) error {
+func (c *ProvisionSite) downloadMissingTemplateFiles(ctx context.Context, path, bucketPath string) error {
 	dir, err := os.ReadDir(path)
 	if err != nil {
 		return err
 	}
 	if len(dir) == 0 {
 		slog.Info("directory is empty, downloading sources", "dir", path)
-		files := c.Storage.ListFiles(100, &s3.ListObjectsV2Input{
+		files := c.Storage.ListFiles(ctx, 100, &s3.ListObjectsV2Input{
 			Prefix: aws.String(bucketPath),
 		})
-		err = c.Storage.DownloadFiles(files, path, bucketPath)
+		err = c.Storage.DownloadFiles(ctx, files, path, bucketPath)
 		if err != nil {
 			slog.Error("error downloading template's sources %v", "template", err)
 			return err

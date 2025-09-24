@@ -45,9 +45,9 @@ func NewAuth(uowFactory *dbs.UOWFactory, cfg *auth.OIDCConfig) *Auth {
 	}
 }
 
-func (c *Auth) CreateSession(req dto.CreateSession) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-	jwks, err := keyfunc.NewDefaultCtx(ctx, []string{c.cfg.IssuerURL + "/.well-known/jwks.json"})
+func (c *Auth) CreateSession(ctx context.Context, req dto.CreateSession) (string, error) {
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*2)
+	jwks, err := keyfunc.NewDefaultCtx(timeoutCtx, []string{c.cfg.IssuerURL + "/.well-known/jwks.json"})
 	cancel()
 	if err != nil {
 		return "", fmt.Errorf("failed to get JWKS: %v", err)
@@ -82,7 +82,7 @@ func (c *Auth) CreateSession(req dto.CreateSession) (string, error) {
 		return "", err
 	}
 	var userID uuid.UUID
-	err = tx.QueryRow(context.Background(), "SELECT id FROM builder.users WHERE email = $1",
+	err = tx.QueryRow(ctx, "SELECT id FROM builder.users WHERE email = $1",
 		claims["email"].(string),
 	).Scan(&userID)
 	if err != nil {
@@ -92,7 +92,7 @@ func (c *Auth) CreateSession(req dto.CreateSession) (string, error) {
 				return "", fmt.Errorf("err creating new user, %v", err)
 			}
 			userID = newUser.ID
-			_, err = tx.Exec(context.Background(), "INSERT INTO builder.users(id, first_name, second_name, email, created_at) VALUES ($1,$2,$3,$4,$5)",
+			_, err = tx.Exec(ctx, "INSERT INTO builder.users(id, first_name, second_name, email, created_at) VALUES ($1,$2,$3,$4,$5)",
 				newUser.ID, newUser.FirstName, newUser.SecondName, newUser.Email, newUser.CreatedAt,
 			)
 			if err != nil {
@@ -109,7 +109,7 @@ func (c *Auth) CreateSession(req dto.CreateSession) (string, error) {
 		IssuedAt:     time.Now(),
 	}
 
-	_, err = tx.Exec(context.Background(), "INSERT INTO builder.sessions(id, user_id, refresh_token, issued_at) VALUES ($1,$2,$3,$4)",
+	_, err = tx.Exec(ctx, "INSERT INTO builder.sessions(id, user_id, refresh_token, issued_at) VALUES ($1,$2,$3,$4)",
 		session.ID, session.UserID, session.RefreshToken, session.IssuedAt)
 	if err != nil {
 		return "", fmt.Errorf("error creating a session, %v", err)
@@ -123,7 +123,7 @@ func (c *Auth) CreateSession(req dto.CreateSession) (string, error) {
 	return session.ID.String(), nil
 }
 
-func (c *Auth) GetIdentity(id uuid.UUID) (*auth.Identity, error) {
+func (c *Auth) GetIdentity(ctx context.Context, id uuid.UUID) (*auth.Identity, error) {
 	if c.cfg.Mode == "TEST" {
 		return &auth.Identity{
 			UserID: *c.cfg.TestUser,
@@ -137,7 +137,7 @@ func (c *Auth) GetIdentity(id uuid.UUID) (*auth.Identity, error) {
 
 	// TODO: retrieve from cache
 	var identity auth.Identity
-	err = tx.QueryRow(context.Background(), "SELECT user_id FROM builder.sessions WHERE id = $1", id).Scan(&identity.UserID)
+	err = tx.QueryRow(ctx, "SELECT user_id FROM builder.sessions WHERE id = $1", id).Scan(&identity.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting session, %v", err)
 	}

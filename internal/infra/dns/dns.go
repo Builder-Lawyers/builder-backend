@@ -155,7 +155,7 @@ func (d *DNSProvisioner) DisableDistribution(ctx context.Context, distributionID
 }
 
 func (d *DNSProvisioner) RequestDomain(ctx context.Context, domain string) (string, error) {
-	available, err := d.CheckAvailability(domain)
+	available, err := d.CheckAvailability(ctx, domain)
 	if err != nil || !available {
 		return "", fmt.Errorf("domain %v is not available", domain)
 	}
@@ -188,8 +188,8 @@ func (d *DNSProvisioner) RequestDomain(ctx context.Context, domain string) (stri
 	return aws.ToString(res.OperationId), nil
 }
 
-func (d *DNSProvisioner) GetDomainStatus(operationID string) (rdTypes.OperationStatus, error) {
-	res, err := d.domainClient.GetOperationDetail(context.Background(), &route53domains.GetOperationDetailInput{OperationId: aws.String(operationID)})
+func (d *DNSProvisioner) GetDomainStatus(ctx context.Context, operationID string) (rdTypes.OperationStatus, error) {
+	res, err := d.domainClient.GetOperationDetail(ctx, &route53domains.GetOperationDetailInput{OperationId: aws.String(operationID)})
 	if err != nil {
 		return "", err
 	}
@@ -197,8 +197,8 @@ func (d *DNSProvisioner) GetDomainStatus(operationID string) (rdTypes.OperationS
 	return res.Status, nil
 }
 
-func (d *DNSProvisioner) CheckAvailability(domain string) (bool, error) {
-	out, err := d.domainClient.CheckDomainAvailability(context.Background(), &route53domains.CheckDomainAvailabilityInput{
+func (d *DNSProvisioner) CheckAvailability(ctx context.Context, domain string) (bool, error) {
+	out, err := d.domainClient.CheckDomainAvailability(ctx, &route53domains.CheckDomainAvailabilityInput{
 		DomainName: aws.String(domain),
 	})
 	if err != nil {

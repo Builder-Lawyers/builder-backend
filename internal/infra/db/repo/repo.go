@@ -13,27 +13,29 @@ import (
 )
 
 type ProvisionRepo struct {
+	tx pgx.Tx
 }
 
 var _ interfaces.ProvisionRepo = (*ProvisionRepo)(nil)
 
-func NewProvisionRepo() *ProvisionRepo {
-	return &ProvisionRepo{}
+func NewProvisionRepo(tx pgx.Tx) *ProvisionRepo {
+	return &ProvisionRepo{tx: tx}
 }
 
-func (p ProvisionRepo) GetProvisionByID(tx pgx.Tx, siteID uint64) (db.Provision, error) {
+func (p *ProvisionRepo) GetProvisionByID(ctx context.Context, siteID uint64) (*db.Provision, error) {
 	var provision db.Provision
-	err := tx.QueryRow(context.Background(), "SELECT site_id FROM builder.provisions WHERE site_id = $1", siteID).Scan(&provision.SiteID,
-		&provision.Type, &provision.Domain, &provision.CertificateARN, &provision.CloudfrontID, &provision.CreatedAt, &provision.UpdatedAt)
+	query := "SELECT site_id, type, status, domain, cert_arn, cloudfront_id, created_at, updated_at FROM builder.provisions WHERE site_id = $1"
+	err := p.tx.QueryRow(ctx, query, siteID).Scan(&provision.SiteID, &provision.Type, &provision.Status,
+		&provision.Domain, &provision.CertificateARN, &provision.CloudfrontID, &provision.CreatedAt, &provision.UpdatedAt)
 	if err != nil {
-		return db.Provision{}, err
+		return nil, err
 	}
 
-	return provision, nil
+	return &provision, nil
 }
 
-func (p ProvisionRepo) InsertProvision(tx pgx.Tx, provision db.Provision) error {
-	_, err := tx.Exec(context.Background(), "INSERT INTO builder.provisions(site_id, type, status, domain, cert_arn, cloudfront_id, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)", provision.SiteID, provision.Type, provision.Status, provision.Domain, provision.CertificateARN,
+func (p *ProvisionRepo) InsertProvision(ctx context.Context, provision db.Provision) error {
+	_, err := p.tx.Exec(ctx, "INSERT INTO builder.provisions(site_id, type, status, domain, cert_arn, cloudfront_id, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)", provision.SiteID, provision.Type, provision.Status, provision.Domain, provision.CertificateARN,
 		provision.CloudfrontID, provision.CreatedAt, provision.UpdatedAt)
 	if err != nil {
 		return err
@@ -43,15 +45,16 @@ func (p ProvisionRepo) InsertProvision(tx pgx.Tx, provision db.Provision) error 
 }
 
 type EventRepo struct {
+	tx pgx.Tx
 }
 
 var _ interfaces.EventRepo = (*EventRepo)(nil)
 
-func NewEventRepo() *EventRepo {
-	return &EventRepo{}
+func NewEventRepo(tx pgx.Tx) *EventRepo {
+	return &EventRepo{tx: tx}
 }
 
-func (e EventRepo) InsertEvent(tx pgx.Tx, event shared.Event) error {
+func (e *EventRepo) InsertEvent(ctx context.Context, event shared.Event) error {
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return err
@@ -62,7 +65,7 @@ func (e EventRepo) InsertEvent(tx pgx.Tx, event shared.Event) error {
 		Payload:   json.RawMessage(payload),
 		CreatedAt: time.Now(),
 	}
-	_, err = tx.Exec(context.Background(), "INSERT INTO builder.outbox (event, status, payload, created_at) VALUES ($1,$2,$3,$4)",
+	_, err = e.tx.Exec(ctx, "INSERT INTO builder.outbox (event, status, payload, created_at) VALUES ($1,$2,$3,$4)",
 		outbox.Event, outbox.Status, outbox.Payload, outbox.CreatedAt)
 	if err != nil {
 		return err

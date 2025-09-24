@@ -33,12 +33,18 @@ type ServerInterface interface {
 	// Create a new site
 	// (POST /sites)
 	CreateSite(c *fiber.Ctx) error
+	// Delete a provisioned site
+	// (DELETE /sites/{id})
+	DeleteSite(c *fiber.Ctx, id uint64) error
 	// Get info about an existing site
 	// (GET /sites/{id})
 	GetSite(c *fiber.Ctx, id uint64) error
 	// Update an existing site
 	// (PATCH /sites/{id})
 	UpdateSite(c *fiber.Ctx, id uint64) error
+	// Gets template info
+	// (GET /template/{id})
+	GetTemplate(c *fiber.Ctx, id uint8) error
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -110,6 +116,22 @@ func (siw *ServerInterfaceWrapper) CreateSite(c *fiber.Ctx) error {
 	return siw.Handler.CreateSite(c)
 }
 
+// DeleteSite operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSite(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id uint64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Params("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter id: %w", err).Error())
+	}
+
+	return siw.Handler.DeleteSite(c, id)
+}
+
 // GetSite operation middleware
 func (siw *ServerInterfaceWrapper) GetSite(c *fiber.Ctx) error {
 
@@ -140,6 +162,22 @@ func (siw *ServerInterfaceWrapper) UpdateSite(c *fiber.Ctx) error {
 	}
 
 	return siw.Handler.UpdateSite(c, id)
+}
+
+// GetTemplate operation middleware
+func (siw *ServerInterfaceWrapper) GetTemplate(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id uint8
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Params("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter id: %w", err).Error())
+	}
+
+	return siw.Handler.GetTemplate(c, id)
 }
 
 // FiberServerOptions provides options for the Fiber server.
@@ -177,8 +215,12 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 
 	router.Post(options.BaseURL+"/sites", wrapper.CreateSite)
 
+	router.Delete(options.BaseURL+"/sites/:id", wrapper.DeleteSite)
+
 	router.Get(options.BaseURL+"/sites/:id", wrapper.GetSite)
 
 	router.Patch(options.BaseURL+"/sites/:id", wrapper.UpdateSite)
+
+	router.Get(options.BaseURL+"/template/:id", wrapper.GetTemplate)
 
 }

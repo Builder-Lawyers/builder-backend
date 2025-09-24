@@ -12,31 +12,27 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/mail"
 	"github.com/Builder-Lawyers/builder-backend/pkg/db"
-	"github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
+	shared "github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
 )
 
 type DeactivateSite struct {
 	uowFactory     *db.UOWFactory
 	dnsProvisioner *dns.DNSProvisioner
-	provisionRepo  *repo.ProvisionRepo
-	eventRepo      *repo.EventRepo
 }
 
 func NewDeactivateSite(uowFactory *db.UOWFactory, dnsProvisioner *dns.DNSProvisioner,
-	provisionRepo *repo.ProvisionRepo, eventRepo *repo.EventRepo,
 ) *DeactivateSite {
-	return &DeactivateSite{uowFactory: uowFactory, dnsProvisioner: dnsProvisioner,
-		provisionRepo: provisionRepo, eventRepo: eventRepo,
-	}
+	return &DeactivateSite{uowFactory: uowFactory, dnsProvisioner: dnsProvisioner}
 }
 
-func (c *DeactivateSite) Handle(event events.DeactivateSite) (interfaces.UoW, error) {
+func (c *DeactivateSite) Handle(ctx context.Context, event events.DeactivateSite) (shared.UoW, error) {
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
 		return nil, err
 	}
-	provision, err := c.provisionRepo.GetProvisionByID(tx, event.SiteID)
+	provisionRepo := repo.NewProvisionRepo(tx)
+	provision, err := provisionRepo.GetProvisionByID(ctx, event.SiteID)
 	if err != nil {
 		return uow, fmt.Errorf("error retrieving site's provision, %v", err)
 	}
@@ -48,9 +44,9 @@ func (c *DeactivateSite) Handle(event events.DeactivateSite) (interfaces.UoW, er
 	}
 
 	timeout := 5 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 
-	cloudfrontDomain, err := c.dnsProvisioner.WaitAndGetDistribution(ctx, provision.CloudfrontID)
+	cloudfrontDomain, err := c.dnsProvisioner.WaitAndGetDistribution(timeoutCtx, provision.CloudfrontID)
 	cancel()
 	if err != nil {
 		return uow, err
@@ -72,6 +68,7 @@ func (c *DeactivateSite) Handle(event events.DeactivateSite) (interfaces.UoW, er
 		Reason:  event.Reason,
 	}
 
+	// TODO: based on plan, do different actions. F.e. if plan is with separate domain - deactivate domain
 	var userID string
 	err = tx.QueryRow(ctx, "SELECT s.creator_id, u.first_name, u.second_name FROM builder.sites s "+
 		"LEFT JOIN builder.users u ON s.creator_id = u.id "+
@@ -86,7 +83,8 @@ func (c *DeactivateSite) Handle(event events.DeactivateSite) (interfaces.UoW, er
 		Data:    siteDeactivatedData,
 	}
 
-	err = c.eventRepo.InsertEvent(tx, sendMail)
+	eventRepo := repo.NewEventRepo(tx)
+	err = eventRepo.InsertEvent(ctx, sendMail)
 	if err != nil {
 		return uow, fmt.Errorf("error creating event, %v", err)
 	}

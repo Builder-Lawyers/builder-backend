@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
-	"github.com/Builder-Lawyers/builder-backend/internal/application/interfaces"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/db/repo"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	shared "github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
@@ -18,25 +18,23 @@ import (
 type ProvisionCDN struct {
 	cfg *config.ProvisionConfig
 	*dbs.UOWFactory
-	interfaces.ProvisionRepo
 	*dns.DNSProvisioner
 }
 
 func NewProvisionCDN(
-	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, provisionRepo interfaces.ProvisionRepo, dns *dns.DNSProvisioner,
+	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, dns *dns.DNSProvisioner,
 ) *ProvisionCDN {
 	return &ProvisionCDN{
 		cfg,
 		factory,
-		provisionRepo,
 		dns,
 	}
 }
 
-func (c *ProvisionCDN) Handle(event events.ProvisionCDN) (shared.UoW, error) {
+func (c *ProvisionCDN) Handle(ctx context.Context, event events.ProvisionCDN) (shared.UoW, error) {
 	siteID := strconv.FormatUint(event.SiteID, 10)
 
-	status, err := c.DNSProvisioner.GetDomainStatus(event.OperationID)
+	status, err := c.DNSProvisioner.GetDomainStatus(ctx, event.OperationID)
 	switch status {
 	case types.OperationStatusSuccessful:
 		slog.Info("Requested domain was provisioned for site %v", event.SiteID)
@@ -46,9 +44,9 @@ func (c *ProvisionCDN) Handle(event events.ProvisionCDN) (shared.UoW, error) {
 	}
 
 	timeout := 3 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	// TODO: verify here domain passed, if it is ok
-	distributionID, err := c.DNSProvisioner.MapCfDistributionToS3(ctx, "/sites/"+siteID, event.Domain, event.Domain, event.CertificateARN)
+	distributionID, err := c.DNSProvisioner.MapCfDistributionToS3(timeoutCtx, "/sites/"+siteID, event.Domain, event.Domain, event.CertificateARN)
 	cancel()
 	if err != nil {
 		return nil, err
@@ -60,13 +58,14 @@ func (c *ProvisionCDN) Handle(event events.ProvisionCDN) (shared.UoW, error) {
 		return nil, err
 	}
 
-	provision, err := c.GetProvisionByID(tx, event.SiteID)
+	provisionRepo := repo.NewProvisionRepo(tx)
+	provision, err := provisionRepo.GetProvisionByID(ctx, event.SiteID)
 	if err != nil {
 		return uow, err
 	}
 	provision.CloudfrontID = distributionID
 
-	_, err = tx.Exec(context.Background(), "UPDATE builder.provisions SET cloudfront_id = $1, updated_at = $2 WHERE site_id = $3",
+	_, err = tx.Exec(ctx, "UPDATE builder.provisions SET cloudfront_id = $1, updated_at = $2 WHERE site_id = $3",
 		provision.CloudfrontID, time.Now(), event.SiteID)
 	if err != nil {
 		return uow, err

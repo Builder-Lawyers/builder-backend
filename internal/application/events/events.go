@@ -55,9 +55,8 @@ func (e SendMail) GetType() string {
 }
 
 type DeactivateSite struct {
-	SiteID         uint64
-	SubscriptionID string
-	Reason         string
+	SiteID uint64
+	Reason string
 }
 
 func (e DeactivateSite) GetType() string {

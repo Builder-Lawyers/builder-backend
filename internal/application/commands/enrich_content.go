@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"context"
+
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
 	ai "github.com/Builder-Lawyers/builder-backend/internal/infra/client/openai"
 )
@@ -15,7 +17,7 @@ func NewEnrichContent(client *ai.OpenAIClient) *EnrichContent {
 	}
 }
 
-func (c EnrichContent) Execute(req *dto.EnrichContentRequest) (string, error) {
+func (c EnrichContent) Execute(ctx context.Context, req *dto.EnrichContentRequest) (string, error) {
 	enriched, err := c.aiClient.EnrichContent(req.Content)
 	if err != nil {
 		return "", err

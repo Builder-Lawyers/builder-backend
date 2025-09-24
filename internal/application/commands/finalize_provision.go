@@ -21,24 +21,22 @@ type FinalizeProvision struct {
 	cfg *config.ProvisionConfig
 	*dbs.UOWFactory
 	*dns.DNSProvisioner
-	*repo.EventRepo
 }
 
 func NewFinalizeProvision(
-	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, dns *dns.DNSProvisioner, eventRepo *repo.EventRepo,
+	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, dns *dns.DNSProvisioner,
 ) *FinalizeProvision {
 	return &FinalizeProvision{
 		cfg,
 		factory,
 		dns,
-		eventRepo,
 	}
 }
 
-func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.UoW, error) {
+func (c *FinalizeProvision) Handle(ctx context.Context, event events.FinalizeProvision) (interfaces.UoW, error) {
 	timeout := 10 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	cfDomain, err := c.DNSProvisioner.WaitAndGetDistribution(ctx, event.DistributionID)
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	cfDomain, err := c.DNSProvisioner.WaitAndGetDistribution(timeoutCtx, event.DistributionID)
 	cancel()
 	if err != nil {
 		return nil, fmt.Errorf("err waiting for deployment of distribution, %v", err)
@@ -52,8 +50,8 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 	}
 
 	timeout = 5 * time.Second
-	ctx, cancel = context.WithTimeout(context.Background(), timeout)
-	err = c.DNSProvisioner.CreateSubdomain(ctx, baseDomain, event.Domain, cfDomain)
+	timeoutCtx, cancel = context.WithTimeout(ctx, timeout)
+	err = c.DNSProvisioner.CreateSubdomain(timeoutCtx, baseDomain, event.Domain, cfDomain)
 	cancel()
 	if err != nil {
 		return nil, fmt.Errorf("err creating route53 subdomain, %v", err)
@@ -65,12 +63,12 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 		return nil, err
 	}
 	newStatus := consts.SiteStatusCreated
-	_, err = tx.Exec(context.Background(), "UPDATE builder.sites SET status = $1, updated_at = $2 WHERE id = $3", newStatus, time.Now(), event.SiteID)
+	_, err = tx.Exec(ctx, "UPDATE builder.sites SET status = $1, updated_at = $2 WHERE id = $3", newStatus, time.Now(), event.SiteID)
 	if err != nil {
 		return uow, fmt.Errorf("error updating site status, %v", err)
 	}
 
-	_, err = tx.Exec(context.Background(), "UPDATE builder.provisions SET status = $1, updated_at = $2 WHERE site_id = $3",
+	_, err = tx.Exec(ctx, "UPDATE builder.provisions SET status = $1, updated_at = $2 WHERE site_id = $3",
 		consts.ProvisionStatusProvisioned, time.Now(), event.SiteID)
 	if err != nil {
 		return uow, fmt.Errorf("error updating provision's status, %v", err)
@@ -81,7 +79,7 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 		SiteURL: event.Domain,
 		Year:    strconv.Itoa(time.Now().Year()),
 	}
-	err = tx.QueryRow(context.Background(), "SELECT s.creator_id, u.first_name, u.second_name "+
+	err = tx.QueryRow(ctx, "SELECT s.creator_id, u.first_name, u.second_name "+
 		"FROM builder.sites s "+
 		"LEFT JOIN builder.users u ON s.creator_id = u.id "+
 		"WHERE s.id = $1", event.SiteID,
@@ -96,7 +94,8 @@ func (c *FinalizeProvision) Handle(event events.FinalizeProvision) (interfaces.U
 		Data:    mailData,
 	}
 
-	if err = c.EventRepo.InsertEvent(tx, sendMailEvent); err != nil {
+	eventRepo := repo.NewEventRepo(tx)
+	if err = eventRepo.InsertEvent(ctx, sendMailEvent); err != nil {
 		return uow, fmt.Errorf("error inserting mail event, %v", err)
 	}
 

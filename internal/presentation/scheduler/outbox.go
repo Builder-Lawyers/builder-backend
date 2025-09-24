@@ -22,6 +22,7 @@ type OutboxPoller struct {
 	handlers   *application.Handlers
 	uowFactory *dbs.UOWFactory
 	cfg        *OutboxConfig
+	stop       chan struct{}
 }
 
 type OutboxConfig struct {
@@ -51,33 +52,44 @@ func NewOutboxConfig() *OutboxConfig {
 }
 
 func NewOutboxPoller(handlers *application.Handlers, uowFactory *dbs.UOWFactory, cfg *OutboxConfig) *OutboxPoller {
-	return &OutboxPoller{handlers: handlers, uowFactory: uowFactory, cfg: cfg}
+	return &OutboxPoller{handlers: handlers, uowFactory: uowFactory, cfg: cfg, stop: make(chan struct{})}
 }
 
 func (o *OutboxPoller) Start() {
 	slog.Info("Starting outbox poller...")
-
+	t := time.NewTimer(time.Duration(o.cfg.interval) * time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	for {
-		o.pollTable()
+		select {
+		case <-t.C:
+			o.pollTable(ctx)
+			t = time.NewTimer(time.Duration(o.cfg.interval) * time.Second)
+		case <-o.stop:
+			slog.Info("Cancelling current execution")
+			cancel()
+		}
 		// wait after poll finishes
-		time.Sleep(time.Duration(o.cfg.interval) * time.Second)
 	}
 }
 
 func (o *OutboxPoller) StartParallel() {
 	ticker := time.NewTicker(time.Duration(o.cfg.interval) * time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer ticker.Stop()
 
 	slog.Info("Starting outbox poller...")
 	for {
 		select {
 		case <-ticker.C:
-			go o.pollTable()
+			go o.pollTable(ctx)
+		case <-o.stop:
+			slog.Info("Cancelling current execution")
+			cancel()
 		}
 	}
 }
 
-func (o *OutboxPoller) pollTable() {
+func (o *OutboxPoller) pollTable(ctx context.Context) {
 	uow := o.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
@@ -86,7 +98,7 @@ func (o *OutboxPoller) pollTable() {
 	}
 
 	query := "SELECT * FROM builder.outbox WHERE status = 0 ORDER BY created_at FOR NO KEY UPDATE LIMIT $1"
-	rows, err := tx.Query(context.Background(), query, o.cfg.limit)
+	rows, err := tx.Query(ctx, query, o.cfg.limit)
 	if err != nil {
 		slog.Error("error in poller", "err", err)
 		return
@@ -103,6 +115,10 @@ func (o *OutboxPoller) pollTable() {
 		events = append(events, event)
 	}
 
+	if err = rows.Err(); err != nil {
+		slog.Error("error reading result sets, ", "err", err)
+	}
+
 	if err = uow.Commit(); err != nil {
 		slog.Error("commit error", "err", err)
 	}
@@ -112,7 +128,7 @@ func (o *OutboxPoller) pollTable() {
 		wg.Add(1)
 		go func(ev db.Outbox) {
 			defer wg.Done()
-			if err := o.handleEvent(ev); err != nil {
+			if err := o.handleEvent(ctx, ev); err != nil {
 				slog.Error("handler error", "event", ev.ID, "err", err)
 			}
 		}(event)
@@ -122,7 +138,7 @@ func (o *OutboxPoller) pollTable() {
 	slog.Info("Finished poller thread elaboration")
 }
 
-func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
+func (o *OutboxPoller) handleEvent(ctx context.Context, outbox db.Outbox) error {
 	var (
 		uow    interfaces.UoW
 		tx     pgx.Tx
@@ -135,21 +151,21 @@ func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
 	switch outbox.Event {
 	case events.SiteAwaitingProvision{}.GetType():
 		event := db.MapOutboxModelToSiteAwaitingProvisionEvent(outbox)
-		uow, err = o.handlers.ProvisionSite.Handle(event)
+		uow, err = o.handlers.ProvisionSite.Handle(ctx, event)
 		if err != nil {
 			status = 2
 		}
 		break
 	case events.ProvisionCDN{}.GetType():
 		event := db.MapOutboxModelToProvisionCDN(outbox)
-		uow, err = o.handlers.ProvisionCDN.Handle(event)
+		uow, err = o.handlers.ProvisionCDN.Handle(ctx, event)
 		if err != nil {
 			status = 2
 		}
 		break
 	case events.FinalizeProvision{}.GetType():
 		event := db.MapOutboxModelToFinalizeProvision(outbox)
-		uow, err = o.handlers.FinalizeProvision.Handle(event)
+		uow, err = o.handlers.FinalizeProvision.Handle(ctx, event)
 		if err != nil {
 			if strings.Contains(err.Error(), "timed out waiting for distribution to deploy") {
 				slog.Warn("Distribution still deploying, will retry later")
@@ -160,14 +176,14 @@ func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
 		break
 	case events.SendMail{}.GetType():
 		event := db.MapOutboxModelToSendMail(outbox)
-		uow, err = o.handlers.SendMail.Handle(event)
+		uow, err = o.handlers.SendMail.Handle(ctx, event)
 		if err != nil {
 			status = 2
 		}
 		break
 	case events.DeactivateSite{}.GetType():
 		event := db.MapOutboxModelToDeactivateSite(outbox)
-		uow, err = o.handlers.DeactivateSite.Handle(event)
+		uow, err = o.handlers.DeactivateSite.Handle(ctx, event)
 		if err != nil {
 			status = 2
 		}
@@ -190,7 +206,7 @@ func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
 		tx = uow.GetTx()
 	}
 
-	_, err = tx.Exec(context.Background(), "UPDATE builder.outbox SET status = $1 WHERE id = $2", status, outbox.ID)
+	_, err = tx.Exec(ctx, "UPDATE builder.outbox SET status = $1 WHERE id = $2", status, outbox.ID)
 	if err != nil {
 		errRollback := uow.Rollback()
 		slog.Error("error in poller", "err", err)
@@ -203,4 +219,9 @@ func (o *OutboxPoller) handleEvent(outbox db.Outbox) error {
 	}
 
 	return nil
+}
+
+func (o *OutboxPoller) Stop() {
+	slog.Info("Stopping poller")
+	o.stop <- struct{}{}
 }
