@@ -56,6 +56,20 @@ type CreateSiteResponse struct {
 	SiteID uint64 `json:"siteID"`
 }
 
+// CreateTemplateRequest defines model for CreateTemplateRequest.
+type CreateTemplateRequest struct {
+	// Fields json object with all widgets and fields of a site
+	Fields map[string]interface{} `json:"fields"`
+
+	// Name template's name
+	Name string `json:"name"`
+}
+
+// CreateTemplateResponse defines model for CreateTemplateResponse.
+type CreateTemplateResponse struct {
+	Id uint8 `json:"id"`
+}
+
 // DomainAvailability defines model for DomainAvailability.
 type DomainAvailability struct {
 	Available bool `json:"available"`
@@ -149,3 +163,6 @@ type CreateSiteJSONRequestBody = CreateSiteRequest
 
 // UpdateSiteJSONRequestBody defines body for UpdateSite for application/json ContentType.
 type UpdateSiteJSONRequestBody = UpdateSiteRequest
+
+// CreateTemplateJSONRequestBody defines body for CreateTemplate for application/json ContentType.
+type CreateTemplateJSONRequestBody = CreateTemplateRequest

@@ -42,7 +42,6 @@ func Init() {
 		log.Panicf("failed to connect to db: %v", err)
 	}
 	uowFactory := db.NewUoWFactory(pool)
-
 	// FE Build
 	templateBuild := build.NewTemplateBuild()
 
@@ -72,6 +71,7 @@ func Init() {
 	handlers := &application.Handlers{
 		CreateSite:        commands.NewCreateSite(uowFactory),
 		UpdateSite:        commands.NewUpdateSite(uowFactory),
+		CreateTemplate:    commands.NewCreateTemplate(uowFactory),
 		EnrichContent:     commands.NewEnrichContent(ai.NewOpenAIClient(ai.NewOpenAIConfig())),
 		GetSite:           query.NewGetSite(provisionConfig, uowFactory, dnsProvisioner),
 		GetTemplate:       query.NewGetTemplate(uowFactory, s3, provisionConfig),

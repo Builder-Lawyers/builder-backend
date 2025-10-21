@@ -82,6 +82,24 @@ func (s *Server) DeleteSite(c *fiber.Ctx, id uint64) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+func (s *Server) CreateTemplate(c *fiber.Ctx) error {
+	var req dto.CreateTemplateRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	templateID, err := s.handlers.CreateTemplate.Execute(c.UserContext(), &req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	resp := dto.CreateTemplateResponse{
+		Id: templateID,
+	}
+
+	return c.Status(fiber.StatusNoContent).JSON(resp)
+}
+
 func (s *Server) EnrichContent(c *fiber.Ctx) error {
 	var req dto.EnrichContentRequest
 	if err := c.BodyParser(&req); err != nil {

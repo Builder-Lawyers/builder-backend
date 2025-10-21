@@ -9,6 +9,7 @@ type Handlers struct {
 	*commands.CreateSite
 	*commands.UpdateSite
 	*commands.DeleteSite
+	*commands.CreateTemplate
 	*commands.EnrichContent
 	*commands.ProvisionSite
 	*commands.ProvisionCDN

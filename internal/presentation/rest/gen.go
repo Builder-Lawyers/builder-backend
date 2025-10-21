@@ -42,6 +42,9 @@ type ServerInterface interface {
 	// Update an existing site
 	// (PATCH /sites/{id})
 	UpdateSite(c *fiber.Ctx, id uint64) error
+	// Create a new template
+	// (POST /template)
+	CreateTemplate(c *fiber.Ctx) error
 	// Gets template info
 	// (GET /template/{id})
 	GetTemplate(c *fiber.Ctx, id uint8) error
@@ -164,6 +167,12 @@ func (siw *ServerInterfaceWrapper) UpdateSite(c *fiber.Ctx) error {
 	return siw.Handler.UpdateSite(c, id)
 }
 
+// CreateTemplate operation middleware
+func (siw *ServerInterfaceWrapper) CreateTemplate(c *fiber.Ctx) error {
+
+	return siw.Handler.CreateTemplate(c)
+}
+
 // GetTemplate operation middleware
 func (siw *ServerInterfaceWrapper) GetTemplate(c *fiber.Ctx) error {
 
@@ -220,6 +229,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Get(options.BaseURL+"/sites/:id", wrapper.GetSite)
 
 	router.Patch(options.BaseURL+"/sites/:id", wrapper.UpdateSite)
+
+	router.Post(options.BaseURL+"/template", wrapper.CreateTemplate)
 
 	router.Get(options.BaseURL+"/template/:id", wrapper.GetTemplate)
 
