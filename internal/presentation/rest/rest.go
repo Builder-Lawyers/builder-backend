@@ -3,6 +3,7 @@ package rest
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -80,6 +81,27 @@ func (s *Server) DeleteSite(c *fiber.Ctx, id uint64) error {
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Server) UploadResume(c *fiber.Ctx) error {
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	path := os.TempDir() + c.IP()
+	err = c.SaveFile(fileHeader, path)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	_, err = s.handlers.UploadResume.Execute(c.UserContext(), path)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusCreated)
 }
 
 func (s *Server) CreateTemplate(c *fiber.Ctx) error {

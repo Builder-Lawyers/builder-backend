@@ -33,6 +33,9 @@ type ServerInterface interface {
 	// Create a new site
 	// (POST /sites)
 	CreateSite(c *fiber.Ctx) error
+	// Upload a resume to generate site
+	// (POST /sites/resume)
+	UploadResume(c *fiber.Ctx) error
 	// Delete a provisioned site
 	// (DELETE /sites/{id})
 	DeleteSite(c *fiber.Ctx, id uint64) error
@@ -117,6 +120,12 @@ func (siw *ServerInterfaceWrapper) GetPaymentStatus(c *fiber.Ctx) error {
 func (siw *ServerInterfaceWrapper) CreateSite(c *fiber.Ctx) error {
 
 	return siw.Handler.CreateSite(c)
+}
+
+// UploadResume operation middleware
+func (siw *ServerInterfaceWrapper) UploadResume(c *fiber.Ctx) error {
+
+	return siw.Handler.UploadResume(c)
 }
 
 // DeleteSite operation middleware
@@ -223,6 +232,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Get(options.BaseURL+"/payments/:id", wrapper.GetPaymentStatus)
 
 	router.Post(options.BaseURL+"/sites", wrapper.CreateSite)
+
+	router.Post(options.BaseURL+"/sites/resume", wrapper.UploadResume)
 
 	router.Delete(options.BaseURL+"/sites/:id", wrapper.DeleteSite)
 

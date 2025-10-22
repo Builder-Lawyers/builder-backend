@@ -103,6 +103,34 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /sites/resume:
+    post:
+      summary: Upload a resume to generate site
+      operationId: uploadResume
+      tags:
+        - Sites
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                metadata:
+                  type: object
+                  description: json object with file metadata
+                  additionalProperties: true
+      responses:
+        '200':
+          description: File uploaded successfully
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /ai/enrich:
     post:
       summary: Enrich some user provided info using AI
