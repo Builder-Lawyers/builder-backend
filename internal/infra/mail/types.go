@@ -5,6 +5,7 @@ type MailType string
 const (
 	SiteCreated         MailType = "SiteCreated"
 	SiteDeactivated     MailType = "SiteDeactivated"
+	RegistrationConfirm MailType = "RegistrationConfirm"
 	RegistrationSuccess MailType = "RegistrationSuccess"
 	FreeTrialEnds       MailType = "FreeTrialEnds"
 )
@@ -59,4 +60,17 @@ func (s SiteDeactivatedData) GetMailType() MailType {
 
 func (s SiteDeactivatedData) GetSubject() string {
 	return "Your site was deactivated"
+}
+
+type RegistrationConfirmData struct {
+	Year        string
+	RedirectURL string
+}
+
+func (s RegistrationConfirmData) GetMailType() MailType {
+	return RegistrationConfirm
+}
+
+func (s RegistrationConfirmData) GetSubject() string {
+	return "Verify your email"
 }

@@ -17,10 +17,10 @@ import (
 )
 
 type GetSite struct {
-	cfg *config.ProvisionConfig
-	*dbs.UOWFactory
-	*dns.DNSProvisioner
-	client http.Client
+	cfg            *config.ProvisionConfig
+	uowFactory     *dbs.UOWFactory
+	dnsProvisioner *dns.DNSProvisioner
+	client         http.Client
 }
 
 func NewGetSite(
@@ -39,7 +39,7 @@ func (c *GetSite) Query(ctx context.Context, siteIDParam uint64, identity *auth.
 	siteID := strconv.FormatUint(siteIDParam, 10)
 	var site db.Site
 
-	uow := c.UOWFactory.GetUoW()
+	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
 		return nil, err

@@ -3,17 +3,19 @@ package auth
 import (
 	"log/slog"
 	"os"
+	"strconv"
 
+	"github.com/Builder-Lawyers/builder-backend/pkg/env"
 	"github.com/google/uuid"
 )
 
 type OIDCConfig struct {
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
-	IssuerURL    string
-	Mode         string
-	TestUser     *uuid.UUID
+	UserPoolID                 string
+	RedirectURL                string
+	ConfirmationExpirationMins int
+	IssuerURL                  string
+	Mode                       string
+	TestUser                   *uuid.UUID
 }
 
 func NewOIDCConfig() *OIDCConfig {
@@ -27,12 +29,17 @@ func NewOIDCConfig() *OIDCConfig {
 			return nil
 		}
 	}
+	confirmationExpMin, err := strconv.Atoi(env.GetEnv("SIGNUP_CONFIRM_EXP", "60"))
+	if err != nil {
+		slog.Error("err parsing SIGNUP_CONFIRM_EXP, set to default", "err", err)
+		confirmationExpMin = 60
+	}
 	return &OIDCConfig{
-		ClientID:     os.Getenv("COGNITO_ID"),
-		ClientSecret: os.Getenv("COGNITO_SECRET"),
-		RedirectURL:  os.Getenv("COGNITO_REDIRECT"),
-		IssuerURL:    os.Getenv("COGNITO_ISSUER"),
-		Mode:         os.Getenv("MODE"),
-		TestUser:     &testUserID,
+		UserPoolID:                 os.Getenv("COGNITO_POOL_ID"),
+		RedirectURL:                os.Getenv("SIGNUP_REDIRECT"),
+		ConfirmationExpirationMins: confirmationExpMin,
+		IssuerURL:                  os.Getenv("COGNITO_ISSUER"),
+		Mode:                       os.Getenv("MODE"),
+		TestUser:                   &testUserID,
 	}
 }

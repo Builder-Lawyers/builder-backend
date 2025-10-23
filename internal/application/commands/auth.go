@@ -2,52 +2,46 @@ package commands
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
-	"log"
+	"strconv"
 	"time"
 
+	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/db/repo"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/mail"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"github.com/MicahParks/keyfunc/v3"
-	"github.com/coreos/go-oidc"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"golang.org/x/oauth2"
 )
 
 type Auth struct {
-	cache       map[string]string
-	uowFactory  *dbs.UOWFactory
-	cfg         *auth.OIDCConfig
-	oauthClient *oauth2.Config
+	cache      map[string]string
+	uowFactory *dbs.UOWFactory
+	cfg        *auth.OIDCConfig
+	cognito    *cognitoidentityprovider.Client
 }
 
-func NewAuth(uowFactory *dbs.UOWFactory, cfg *auth.OIDCConfig) *Auth {
-	provider, err := oidc.NewProvider(context.Background(), cfg.IssuerURL)
-	if err != nil {
-		log.Panicln("Failed to create OIDC provider:", err)
-	}
+func NewAuth(uowFactory *dbs.UOWFactory, oidcCfg *auth.OIDCConfig, cfg aws.Config) *Auth {
 	return &Auth{
 		cache:      make(map[string]string),
 		uowFactory: uowFactory,
-		cfg:        cfg,
-		oauthClient: &oauth2.Config{
-			ClientID:     cfg.ClientID,
-			ClientSecret: cfg.ClientSecret,
-			RedirectURL:  cfg.RedirectURL,
-			Endpoint:     provider.Endpoint(),
-			Scopes:       []string{oidc.ScopeOpenID, "profile", "openid", "email"},
-		},
+		cfg:        oidcCfg,
+		cognito: cognitoidentityprovider.NewFromConfig(cfg, func(o *cognitoidentityprovider.Options) {
+			o.Region = "us-east-1"
+		}),
 	}
 }
 
 func (c *Auth) CreateSession(ctx context.Context, req dto.CreateSession) (string, error) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*2)
-	jwks, err := keyfunc.NewDefaultCtx(timeoutCtx, []string{c.cfg.IssuerURL + "/.well-known/jwks.json"})
+	jwks, err := keyfunc.NewDefaultCtx(timeoutCtx, []string{c.cfg.IssuerURL})
 	cancel()
 	if err != nil {
 		return "", fmt.Errorf("failed to get JWKS: %v", err)
@@ -86,19 +80,19 @@ func (c *Auth) CreateSession(ctx context.Context, req dto.CreateSession) (string
 		claims["email"].(string),
 	).Scan(&userID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			newUser, err := createUserFromClaims(claims)
-			if err != nil {
-				return "", fmt.Errorf("err creating new user, %v", err)
-			}
-			userID = newUser.ID
-			_, err = tx.Exec(ctx, "INSERT INTO builder.users(id, first_name, second_name, email, created_at) VALUES ($1,$2,$3,$4,$5)",
-				newUser.ID, newUser.FirstName, newUser.SecondName, newUser.Email, newUser.CreatedAt,
-			)
-			if err != nil {
-				return "", fmt.Errorf("err inserting user, %v", err)
-			}
-		}
+		//if errors.Is(err, sql.ErrNoRows) {
+		//	newUser, err := createUserFromClaims(claims)
+		//	if err != nil {
+		//		return "", fmt.Errorf("err creating new user, %v", err)
+		//	}
+		//	userID = newUser.ID
+		//	_, err = tx.Exec(ctx, "INSERT INTO builder.users(id, first_name, second_name, email, created_at) VALUES ($1,$2,$3,$4,$5)",
+		//		newUser.ID, newUser.FirstName, newUser.SecondName, newUser.Email, newUser.CreatedAt,
+		//	)
+		//	if err != nil {
+		//		return "", fmt.Errorf("err inserting user, %v", err)
+		//	}
+		//}
 		return "", fmt.Errorf("error getting user by email, %v", err)
 	}
 
@@ -121,6 +115,97 @@ func (c *Auth) CreateSession(ctx context.Context, req dto.CreateSession) (string
 	}
 
 	return session.ID.String(), nil
+}
+
+func (c *Auth) CreateConfirmationCode(ctx context.Context, req *dto.CreateConfirmation) error {
+
+	uow := c.uowFactory.GetUoW()
+	tx, err := uow.Begin()
+	if err != nil {
+		return err
+	}
+
+	code := uuid.New()
+	expiresAt := time.Now().Add(time.Minute * time.Duration(c.cfg.ConfirmationExpirationMins))
+
+	_, err = tx.Exec(ctx, "INSERT INTO builder.confirmation_codes(code, user_id, email, expires_at) VALUES ($1,$2,$3,$4)",
+		code, req.UserID, req.Email, expiresAt)
+	if err != nil {
+		return fmt.Errorf("err generating a confirmation code, %v", err)
+	}
+
+	_, err = tx.Exec(ctx, "INSERT INTO builder.users(id, status, email, created_at) VALUES ($1,$2,$3,$4)",
+		req.UserID, consts.UserStatusNotConfirmed, req.Email, time.Now())
+	if err != nil {
+		return fmt.Errorf("err creating user, %v", err)
+	}
+
+	registrationConfirmData := mail.RegistrationConfirmData{
+		Year:        strconv.Itoa(time.Now().Year()),
+		RedirectURL: fmt.Sprintf("%v?code=%v", c.cfg.RedirectURL, code),
+	}
+
+	sendMail := events.SendMail{
+		UserID:  req.UserID,
+		Subject: registrationConfirmData.GetSubject(),
+		Data:    registrationConfirmData,
+	}
+
+	eventRepo := repo.NewEventRepo(tx)
+	err = eventRepo.InsertEvent(ctx, sendMail)
+	if err != nil {
+		return fmt.Errorf("error creating event, %v", err)
+	}
+
+	err = uow.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (dto.VerifiedUser, error) {
+	uow := c.uowFactory.GetUoW()
+	tx, err := uow.Begin()
+	if err != nil {
+		return dto.VerifiedUser{}, err
+	}
+
+	var userID uuid.UUID
+	var expiresAt time.Time
+	err = tx.QueryRow(ctx, "SELECT user_id, expires_at FROM builder.confirmation_codes WHERE code = $1", req.Code).Scan(&userID, &expiresAt)
+	if err != nil {
+		return dto.VerifiedUser{}, fmt.Errorf("err getting confirmation code, %v", err)
+	}
+
+	if expiresAt.After(time.Now()) {
+		return dto.VerifiedUser{}, fmt.Errorf("code is expired")
+	}
+
+	input := &cognitoidentityprovider.AdminConfirmSignUpInput{
+		UserPoolId: aws.String(c.cfg.UserPoolID),
+		Username:   aws.String(userID.String()), // TODO: or email?
+	}
+
+	_, err = c.cognito.AdminConfirmSignUp(context.Background(), input)
+	if err != nil {
+		return dto.VerifiedUser{}, fmt.Errorf("failed to confirm user: %v", err)
+	}
+
+	_, err = tx.Exec(ctx, "UPDATE builder.users SET status = $1 WHERE id = $2", consts.UserConfirmed, userID)
+	if err != nil {
+		return dto.VerifiedUser{}, fmt.Errorf("err updating user status, %v", err)
+	}
+
+	err = uow.Commit()
+	if err != nil {
+		return dto.VerifiedUser{}, err
+	}
+
+	return dto.VerifiedUser{
+		UserID: userID.String(),
+	}, nil
 }
 
 func (c *Auth) GetIdentity(ctx context.Context, id uuid.UUID) (*auth.Identity, error) {

@@ -178,6 +178,34 @@ func (s *Server) CreateSession(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
+func (s *Server) CreateConfirmation(c *fiber.Ctx) error {
+	var req dto.CreateConfirmation
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	err := s.handlers.Auth.CreateConfirmationCode(c.UserContext(), &req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusCreated)
+}
+
+func (s *Server) VerifyUser(c *fiber.Ctx) error {
+	var req dto.VerifyCode
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	verifiedUser, err := s.handlers.Auth.VerifyCode(c.UserContext(), &req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(verifiedUser)
+}
+
 func (s *Server) CreatePayment(c *fiber.Ctx) error {
 	var req dto.CreatePaymentRequest
 	if err := c.BodyParser(&req); err != nil {

@@ -79,7 +79,7 @@ func Init() {
 		ProvisionCDN:      commands.NewProvisionCDN(provisionConfig, uowFactory, dnsProvisioner),
 		FinalizeProvision: commands.NewFinalizeProvision(provisionConfig, uowFactory, dnsProvisioner),
 		DeactivateSite:    commands.NewDeactivateSite(uowFactory, dnsProvisioner),
-		Auth:              commands.NewAuth(uowFactory, oidcConfig),
+		Auth:              commands.NewAuth(uowFactory, oidcConfig, cfg),
 		CheckDomain:       query.NewCheckDomain(dnsProvisioner),
 		SendMail:          commands.NewSendMail(mailServer, uowFactory),
 		Payment:           commands.NewPayment(uowFactory, paymentConfig),

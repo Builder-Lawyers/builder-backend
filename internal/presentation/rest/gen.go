@@ -15,9 +15,15 @@ type ServerInterface interface {
 	// Enrich some user provided info using AI
 	// (POST /ai/enrich)
 	EnrichContent(c *fiber.Ctx) error
+	// Creates a confirmation mail with code for user signup
+	// (POST /auth/confirmation)
+	CreateConfirmation(c *fiber.Ctx) error
 	// Gets a session from access token
 	// (POST /auth/session)
 	CreateSession(c *fiber.Ctx) error
+	// Verifies provided confirmation code
+	// (POST /auth/verify)
+	VerifyUser(c *fiber.Ctx) error
 	// Checks domain availability
 	// (GET /domain/{domain})
 	CheckDomain(c *fiber.Ctx, domain string) error
@@ -63,10 +69,22 @@ func (siw *ServerInterfaceWrapper) EnrichContent(c *fiber.Ctx) error {
 	return siw.Handler.EnrichContent(c)
 }
 
+// CreateConfirmation operation middleware
+func (siw *ServerInterfaceWrapper) CreateConfirmation(c *fiber.Ctx) error {
+
+	return siw.Handler.CreateConfirmation(c)
+}
+
 // CreateSession operation middleware
 func (siw *ServerInterfaceWrapper) CreateSession(c *fiber.Ctx) error {
 
 	return siw.Handler.CreateSession(c)
+}
+
+// VerifyUser operation middleware
+func (siw *ServerInterfaceWrapper) VerifyUser(c *fiber.Ctx) error {
+
+	return siw.Handler.VerifyUser(c)
 }
 
 // CheckDomain operation middleware
@@ -212,7 +230,11 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 
 	router.Post(options.BaseURL+"/ai/enrich", wrapper.EnrichContent)
 
+	router.Post(options.BaseURL+"/auth/confirmation", wrapper.CreateConfirmation)
+
 	router.Post(options.BaseURL+"/auth/session", wrapper.CreateSession)
+
+	router.Post(options.BaseURL+"/auth/verify", wrapper.VerifyUser)
 
 	router.Get(options.BaseURL+"/domain/:domain", wrapper.CheckDomain)
 

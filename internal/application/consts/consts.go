@@ -2,12 +2,21 @@ package consts
 
 type SiteStatus string
 
-const SiteStatusInCreation SiteStatus = "InCreation"
-const SiteStatusAwaitingProvision SiteStatus = "AwaitingProvision"
-const SiteStatusCreated SiteStatus = "Created"
-const SiteStatusDeactivated SiteStatus = "Deactivated"
-const SiteStatusAwaitingDeactivation SiteStatus = "AwaitingDeactivation"
-const SiteStatusDeleted SiteStatus = "Deleted"
+const (
+	SiteStatusInCreation           SiteStatus = "InCreation"
+	SiteStatusAwaitingProvision    SiteStatus = "AwaitingProvision"
+	SiteStatusCreated              SiteStatus = "Created"
+	SiteStatusDeactivated          SiteStatus = "Deactivated"
+	SiteStatusAwaitingDeactivation SiteStatus = "AwaitingDeactivation"
+	SiteStatusDeleted              SiteStatus = "Deleted"
+)
+
+type UserStatus string
+
+const (
+	UserStatusNotConfirmed UserStatus = "NotConfirmed"
+	UserConfirmed          UserStatus = "Confirmed"
+)
 
 type OutboxStatus int
 

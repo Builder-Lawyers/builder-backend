@@ -24,6 +24,12 @@ const (
 	InCreation        UpdateSiteRequestNewStatus = "InCreation"
 )
 
+// CreateConfirmation defines model for CreateConfirmation.
+type CreateConfirmation struct {
+	Email  string `json:"email"`
+	UserID string `json:"userID"`
+}
+
 // CreatePaymentRequest defines model for CreatePaymentRequest.
 type CreatePaymentRequest struct {
 	PlanID uint8 `json:"planID"`
@@ -137,6 +143,16 @@ type UpdateSiteResponse struct {
 	SiteID uint64 `json:"siteID"`
 }
 
+// VerifiedUser defines model for VerifiedUser.
+type VerifiedUser struct {
+	UserID string `json:"userID"`
+}
+
+// VerifyCode defines model for VerifyCode.
+type VerifyCode struct {
+	Code string `json:"code"`
+}
+
 // BadRequestError defines model for BadRequestError.
 type BadRequestError = ErrorResponse
 
@@ -149,8 +165,14 @@ type UnauthorizedError = ErrorResponse
 // EnrichContentJSONRequestBody defines body for EnrichContent for application/json ContentType.
 type EnrichContentJSONRequestBody = EnrichContentRequest
 
+// CreateConfirmationJSONRequestBody defines body for CreateConfirmation for application/json ContentType.
+type CreateConfirmationJSONRequestBody = CreateConfirmation
+
 // CreateSessionJSONRequestBody defines body for CreateSession for application/json ContentType.
 type CreateSessionJSONRequestBody = CreateSession
+
+// VerifyUserJSONRequestBody defines body for VerifyUser for application/json ContentType.
+type VerifyUserJSONRequestBody = VerifyCode
 
 // CreatePaymentJSONRequestBody defines body for CreatePayment for application/json ContentType.
 type CreatePaymentJSONRequestBody = CreatePaymentRequest

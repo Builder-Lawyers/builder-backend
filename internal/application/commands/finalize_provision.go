@@ -18,9 +18,9 @@ import (
 )
 
 type FinalizeProvision struct {
-	cfg *config.ProvisionConfig
-	*dbs.UOWFactory
-	*dns.DNSProvisioner
+	cfg         *config.ProvisionConfig
+	uowFactory  *dbs.UOWFactory
+	dnsProvider *dns.DNSProvisioner
 }
 
 func NewFinalizeProvision(
@@ -36,7 +36,7 @@ func NewFinalizeProvision(
 func (c *FinalizeProvision) Handle(ctx context.Context, event events.FinalizeProvision) (interfaces.UoW, error) {
 	timeout := 10 * time.Second
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-	cfDomain, err := c.DNSProvisioner.WaitAndGetDistribution(timeoutCtx, event.DistributionID)
+	cfDomain, err := c.dnsProvider.WaitAndGetDistribution(timeoutCtx, event.DistributionID)
 	cancel()
 	if err != nil {
 		return nil, fmt.Errorf("err waiting for deployment of distribution, %v", err)
@@ -51,13 +51,13 @@ func (c *FinalizeProvision) Handle(ctx context.Context, event events.FinalizePro
 
 	timeout = 5 * time.Second
 	timeoutCtx, cancel = context.WithTimeout(ctx, timeout)
-	err = c.DNSProvisioner.CreateSubdomain(timeoutCtx, baseDomain, event.Domain, cfDomain)
+	err = c.dnsProvider.CreateSubdomain(timeoutCtx, baseDomain, event.Domain, cfDomain)
 	cancel()
 	if err != nil {
 		return nil, fmt.Errorf("err creating route53 subdomain, %v", err)
 	}
 
-	uow := c.UOWFactory.GetUoW()
+	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
 		return nil, err

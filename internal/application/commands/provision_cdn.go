@@ -16,9 +16,9 @@ import (
 )
 
 type ProvisionCDN struct {
-	cfg *config.ProvisionConfig
-	*dbs.UOWFactory
-	*dns.DNSProvisioner
+	cfg            *config.ProvisionConfig
+	uowFactory     *dbs.UOWFactory
+	dnsProvisioner *dns.DNSProvisioner
 }
 
 func NewProvisionCDN(
@@ -34,7 +34,7 @@ func NewProvisionCDN(
 func (c *ProvisionCDN) Handle(ctx context.Context, event events.ProvisionCDN) (shared.UoW, error) {
 	siteID := strconv.FormatUint(event.SiteID, 10)
 
-	status, err := c.DNSProvisioner.GetDomainStatus(ctx, event.OperationID)
+	status, err := c.dnsProvisioner.GetDomainStatus(ctx, event.OperationID)
 	switch status {
 	case types.OperationStatusSuccessful:
 		slog.Info("Requested domain was provisioned for site %v", event.SiteID)
@@ -46,13 +46,13 @@ func (c *ProvisionCDN) Handle(ctx context.Context, event events.ProvisionCDN) (s
 	timeout := 3 * time.Second
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	// TODO: verify here domain passed, if it is ok
-	distributionID, err := c.DNSProvisioner.MapCfDistributionToS3(timeoutCtx, "/sites/"+siteID, event.Domain, event.Domain, event.CertificateARN)
+	distributionID, err := c.dnsProvisioner.MapCfDistributionToS3(timeoutCtx, "/sites/"+siteID, event.Domain, event.Domain, event.CertificateARN)
 	cancel()
 	if err != nil {
 		return nil, err
 	}
 
-	uow := c.UOWFactory.GetUoW()
+	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
 		return nil, err

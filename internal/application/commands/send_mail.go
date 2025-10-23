@@ -88,31 +88,28 @@ func renderHTML(tmpl string, data mail.MailData) (string, error) {
 }
 
 func mapToMailData(event events.SendMail) (mail.MailData, error) {
-
-	switch event.Subject {
-	case mail.FreeTrialEndsData{}.GetSubject():
-		var trialEnds mail.FreeTrialEndsData
-		raw, _ := json.Marshal(event.Data)
-		if err := json.Unmarshal(raw, &trialEnds); err != nil {
-			return nil, fmt.Errorf("error mapping to mailData, %v", err)
-		}
-		return trialEnds, nil
-	case mail.SiteCreatedData{}.GetSubject():
-		var siteCreated mail.SiteCreatedData
-		raw, _ := json.Marshal(event.Data)
-		if err := json.Unmarshal(raw, &siteCreated); err != nil {
-			return nil, fmt.Errorf("error mapping to mailData, %v", err)
-		}
-		return siteCreated, nil
-	case mail.SiteDeactivatedData{}.GetSubject():
-		var siteDeactivated mail.SiteDeactivatedData
-		raw, _ := json.Marshal(event.Data)
-		if err := json.Unmarshal(raw, &siteDeactivated); err != nil {
-			return nil, fmt.Errorf("error mapping to mailData, %v", err)
-		}
-		return siteDeactivated, nil
-
+	factory, ok := mailDataRegistry[event.Subject]
+	if !ok {
+		return nil, fmt.Errorf("no such mailData type for subject: %s", event.Subject)
 	}
 
-	return nil, fmt.Errorf("no such mailData type exists")
+	instance := factory()
+
+	raw, err := json.Marshal(event.Data)
+	if err != nil {
+		return nil, fmt.Errorf("marshal error: %w", err)
+	}
+
+	if err := json.Unmarshal(raw, instance); err != nil {
+		return nil, fmt.Errorf("unmarshal error: %w", err)
+	}
+
+	return instance, nil
+}
+
+var mailDataRegistry = map[string]func() mail.MailData{
+	mail.FreeTrialEndsData{}.GetSubject():       func() mail.MailData { return &mail.FreeTrialEndsData{} },
+	mail.SiteCreatedData{}.GetSubject():         func() mail.MailData { return &mail.SiteCreatedData{} },
+	mail.SiteDeactivatedData{}.GetSubject():     func() mail.MailData { return &mail.SiteDeactivatedData{} },
+	mail.RegistrationConfirmData{}.GetSubject(): func() mail.MailData { return &mail.RegistrationConfirmData{} },
 }

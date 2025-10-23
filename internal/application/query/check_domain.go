@@ -7,7 +7,7 @@ import (
 )
 
 type CheckDomain struct {
-	*dns.DNSProvisioner
+	dnsProvisioner *dns.DNSProvisioner
 }
 
 func NewCheckDomain(dns *dns.DNSProvisioner) *CheckDomain {
@@ -17,5 +17,5 @@ func NewCheckDomain(dns *dns.DNSProvisioner) *CheckDomain {
 }
 
 func (c *CheckDomain) Query(ctx context.Context, domain string) (bool, error) {
-	return c.CheckAvailability(ctx, domain)
+	return c.dnsProvisioner.CheckAvailability(ctx, domain)
 }
