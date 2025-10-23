@@ -19,12 +19,14 @@ import (
 type Storage struct {
 	client *s3.Client
 	bucket string
+	region string
 }
 
 func NewStorage(config aws.Config) *Storage {
 	return &Storage{
 		initClient(config),
 		env.GetEnv("S3_BUCKET", "sanity-web"),
+		env.GetEnv("AWS_DEFAULT_REGION", "eu-north-1"),
 	}
 }
 
@@ -35,12 +37,12 @@ func initClient(config aws.Config) *s3.Client {
 	return client
 }
 
-func (s *Storage) UploadFile(ctx context.Context, key string, contentType *string, body io.Reader) error {
+func (s *Storage) UploadFile(ctx context.Context, key string, contentType *string, body io.Reader) (string, error) {
 	var ct string
 
 	data, err := io.ReadAll(body)
 	if err != nil && err != io.EOF {
-		return fmt.Errorf("reading for content-type detection: %w", err)
+		return "", fmt.Errorf("reading for content-type detection: %v", err)
 	}
 
 	if contentType == nil {
@@ -62,9 +64,11 @@ func (s *Storage) UploadFile(ctx context.Context, key string, contentType *strin
 		ContentLength: aws.Int64(int64(len(data))),
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+
+	fileURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", s.bucket, s.region, key)
+	return fileURL, nil
 }
 
 func (s *Storage) ListFiles(ctx context.Context, limit int32, input *s3.ListObjectsV2Input) []string {

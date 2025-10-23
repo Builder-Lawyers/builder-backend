@@ -73,6 +73,7 @@ func Init() {
 		UpdateSite:        commands.NewUpdateSite(uowFactory),
 		CreateTemplate:    commands.NewCreateTemplate(uowFactory),
 		EnrichContent:     commands.NewEnrichContent(ai.NewOpenAIClient(ai.NewOpenAIConfig())),
+		UploadFile:        commands.NewUploadFile(uowFactory, s3),
 		GetSite:           query.NewGetSite(provisionConfig, uowFactory, dnsProvisioner),
 		GetTemplate:       query.NewGetTemplate(uowFactory, s3, provisionConfig),
 		ProvisionSite:     commands.NewProvisionSite(provisionConfig, uowFactory, s3, templateBuild, dnsProvisioner, acmCerts),

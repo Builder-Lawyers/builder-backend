@@ -9,15 +9,15 @@ import (
 )
 
 type CreateTemplate struct {
-	*dbs.UOWFactory
+	uowFactory *dbs.UOWFactory
 }
 
 func NewCreateTemplate(factory *dbs.UOWFactory) *CreateTemplate {
-	return &CreateTemplate{UOWFactory: factory}
+	return &CreateTemplate{uowFactory: factory}
 }
 
 func (c *CreateTemplate) Execute(ctx context.Context, req *dto.CreateTemplateRequest) (uint8, error) {
-	uow := c.UOWFactory.GetUoW()
+	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
 		return 0, err

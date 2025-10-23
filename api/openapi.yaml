@@ -107,6 +107,8 @@ paths:
     post:
       summary: Enrich some user provided info using AI
       operationId: enrichContent
+      tags:
+        - Other
       requestBody:
         required: true
         content:
@@ -120,6 +122,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EnrichContentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /file/upload:
+    post:
+      summary: Upload a file for site static content
+      operationId: fileUpload
+      tags:
+        - Other
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                metadata:
+                  type: object
+                  description: json object with file metadata
+                  additionalProperties: true
+      responses:
+        '201':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadedResponse'
         '400':
           $ref: '#/components/responses/BadRequestError'
         '500':
@@ -179,6 +213,8 @@ paths:
       summary: Checks domain availability
       description: Returns whether a domain is available or not
       operationId: checkDomain
+      tags:
+        - Other
       parameters:
         - name: domain
           in: path
@@ -278,6 +314,8 @@ paths:
       summary: Gets a client secret to create a payment
       description: Returns a client secret to create a checkout session for payment
       operationId: createPayment
+      tags:
+        - Payments
       requestBody:
         required: true
         content:
@@ -302,6 +340,8 @@ paths:
       summary: Gets a payment checkout session info
       description: Returns a payment checkout session info
       operationId: getPaymentStatus
+      tags:
+        - Payments
       parameters:
         - name: id
           in: path
@@ -327,6 +367,8 @@ paths:
     post:
       summary: Listens for webhook requests from stripe
       operationId: handleEvent
+      tags:
+        - Payments
       requestBody:
         required: true
         content:
@@ -397,8 +439,6 @@ components:
             customSetting:
               nested: true
               list: [ 1, 2, 3 ]
-      required:
-        - templateID
 
     UpdateSiteResponse:
       type: object
@@ -451,6 +491,19 @@ components:
           example: "Some info about user enriched"
       required:
         - enriched
+
+    FileUploadedResponse:
+      type: object
+      properties:
+        fileID:
+          type: string
+          example: 021804b8-5071-7049-7034-8853ffd88039
+        fileURL:
+          type: string
+          example: https://bucketName-s3.region.amazonaws.com/key
+      required:
+        - fileID
+        - fileURL
 
     CheckDomainParams:
       type: object

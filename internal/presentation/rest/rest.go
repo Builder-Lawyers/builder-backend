@@ -118,6 +118,20 @@ func (s *Server) EnrichContent(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(resp)
 }
 
+func (s *Server) FileUpload(c *fiber.Ctx) error {
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	resp, err := s.handlers.UploadFile.Execute(c.UserContext(), fileHeader)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(resp)
+}
+
 func (s *Server) GetTemplate(c *fiber.Ctx, id uint8) error {
 
 	templateInfo, err := s.handlers.GetTemplate.Query(c.UserContext(), id)

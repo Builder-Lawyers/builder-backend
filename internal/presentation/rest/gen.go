@@ -27,6 +27,9 @@ type ServerInterface interface {
 	// Checks domain availability
 	// (GET /domain/{domain})
 	CheckDomain(c *fiber.Ctx, domain string) error
+	// Upload a file for site static content
+	// (POST /file/upload)
+	FileUpload(c *fiber.Ctx) error
 	// Gets a client secret to create a payment
 	// (POST /payments)
 	CreatePayment(c *fiber.Ctx) error
@@ -101,6 +104,12 @@ func (siw *ServerInterfaceWrapper) CheckDomain(c *fiber.Ctx) error {
 	}
 
 	return siw.Handler.CheckDomain(c, domain)
+}
+
+// FileUpload operation middleware
+func (siw *ServerInterfaceWrapper) FileUpload(c *fiber.Ctx) error {
+
+	return siw.Handler.FileUpload(c)
 }
 
 // CreatePayment operation middleware
@@ -237,6 +246,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Post(options.BaseURL+"/auth/verify", wrapper.VerifyUser)
 
 	router.Get(options.BaseURL+"/domain/:domain", wrapper.CheckDomain)
+
+	router.Post(options.BaseURL+"/file/upload", wrapper.FileUpload)
 
 	router.Post(options.BaseURL+"/payments", wrapper.CreatePayment)
 

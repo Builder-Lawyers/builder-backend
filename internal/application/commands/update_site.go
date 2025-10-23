@@ -18,17 +18,17 @@ import (
 )
 
 type UpdateSite struct {
-	*dbs.UOWFactory
+	uowFactory *dbs.UOWFactory
 }
 
 func NewUpdateSite(factory *dbs.UOWFactory) *UpdateSite {
-	return &UpdateSite{UOWFactory: factory}
+	return &UpdateSite{uowFactory: factory}
 }
 
 func (c *UpdateSite) Execute(ctx context.Context, siteID uint64, req *dto.UpdateSiteRequest, identity *auth.Identity) (uint64, error) {
 	var site db.Site
 
-	uow := c.UOWFactory.GetUoW()
+	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
 		return 0, err

@@ -22,7 +22,6 @@ import (
 )
 
 type Auth struct {
-	cache      map[string]string
 	uowFactory *dbs.UOWFactory
 	cfg        *auth.OIDCConfig
 	cognito    *cognitoidentityprovider.Client
@@ -30,7 +29,6 @@ type Auth struct {
 
 func NewAuth(uowFactory *dbs.UOWFactory, oidcCfg *auth.OIDCConfig, cfg aws.Config) *Auth {
 	return &Auth{
-		cache:      make(map[string]string),
 		uowFactory: uowFactory,
 		cfg:        oidcCfg,
 		cognito: cognitoidentityprovider.NewFromConfig(cfg, func(o *cognitoidentityprovider.Options) {
@@ -173,8 +171,9 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (dto.Verifie
 	}
 
 	var userID uuid.UUID
+	var email string
 	var expiresAt time.Time
-	err = tx.QueryRow(ctx, "SELECT user_id, expires_at FROM builder.confirmation_codes WHERE code = $1", req.Code).Scan(&userID, &expiresAt)
+	err = tx.QueryRow(ctx, "SELECT user_id, email, expires_at FROM builder.confirmation_codes WHERE code = $1", req.Code).Scan(&userID, &email, &expiresAt)
 	if err != nil {
 		return dto.VerifiedUser{}, fmt.Errorf("err getting confirmation code, %v", err)
 	}
@@ -185,7 +184,7 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (dto.Verifie
 
 	input := &cognitoidentityprovider.AdminConfirmSignUpInput{
 		UserPoolId: aws.String(c.cfg.UserPoolID),
-		Username:   aws.String(userID.String()), // TODO: or email?
+		Username:   aws.String(email), // TODO: or email?
 	}
 
 	_, err = c.cognito.AdminConfirmSignUp(context.Background(), input)
@@ -197,6 +196,8 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (dto.Verifie
 	if err != nil {
 		return dto.VerifiedUser{}, fmt.Errorf("err updating user status, %v", err)
 	}
+
+	// TODO: send registration success mail
 
 	err = uow.Commit()
 	if err != nil {

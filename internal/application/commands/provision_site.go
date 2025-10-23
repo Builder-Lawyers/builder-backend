@@ -191,7 +191,7 @@ func (c *ProvisionSite) uploadFiles(ctx context.Context, siteID, templateName, d
 		if err != nil {
 			return fmt.Errorf("malformed filepath, %s: %v", f, err)
 		}
-		err = c.storage.UploadFile(ctx, siteID+parts[1], nil, file)
+		_, err = c.storage.UploadFile(ctx, siteID+parts[1], nil, file)
 		if err != nil {
 			return fmt.Errorf("can't put object %v", err)
 		}
@@ -340,7 +340,7 @@ func readFilesFromDir(dir string) []string {
 	var files []string
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		slog.Error("Can't find provided directory %v", err)
+		slog.Error("Can't find provided directory", "dir", err)
 	}
 	for _, entry := range entries {
 		fullPath := filepath.Join(dir, entry.Name())

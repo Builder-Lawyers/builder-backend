@@ -15,16 +15,16 @@ import (
 )
 
 type DeleteSite struct {
-	*dbs.UOWFactory
+	uowFactory *dbs.UOWFactory
 }
 
 func NewDeleteSite(UOWFactory *dbs.UOWFactory) *DeleteSite {
-	return &DeleteSite{UOWFactory: UOWFactory}
+	return &DeleteSite{uowFactory: UOWFactory}
 }
 
 func (c *DeleteSite) Execute(ctx context.Context, siteID uint64, identity *auth.Identity) error {
 
-	uow := c.UOWFactory.GetUoW()
+	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
 		return err

@@ -62,13 +62,13 @@ func (c *GetSite) Query(ctx context.Context, siteIDParam uint64, identity *auth.
 	provisionRepo := repo.NewProvisionRepo(tx)
 	provision, err := provisionRepo.GetProvisionByID(ctx, siteIDParam)
 	if err != nil {
-		slog.Error("site is not provisioned yet, %v", "healthcheck", site)
+		slog.Error("site is not provisioned yet", "siteID", site)
 		response.HealthCheckStatus = dto.NotProvisioned
 		return &response, err
 	}
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://"+provision.Domain, http.NoBody)
 	if err != nil {
-		slog.Error("error creating request to provisioned site", siteID)
+		slog.Error("error creating request to provisioned site", "siteID", siteID)
 		return nil, err
 	}
 	resp, err := c.client.Do(req)

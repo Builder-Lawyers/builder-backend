@@ -13,15 +13,15 @@ import (
 )
 
 type CreateSite struct {
-	*dbs.UOWFactory
+	uowFactory *dbs.UOWFactory
 }
 
 func NewCreateSite(factory *dbs.UOWFactory) *CreateSite {
-	return &CreateSite{UOWFactory: factory}
+	return &CreateSite{uowFactory: factory}
 }
 
 func (c *CreateSite) Execute(ctx context.Context, req *dto.CreateSiteRequest, identity *auth.Identity) (uint64, error) {
-	uow := c.UOWFactory.GetUoW()
+	uow := c.uowFactory.GetUoW()
 
 	tx, err := uow.Begin()
 	if err != nil {

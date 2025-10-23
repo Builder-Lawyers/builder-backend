@@ -37,9 +37,9 @@ func (c *ProvisionCDN) Handle(ctx context.Context, event events.ProvisionCDN) (s
 	status, err := c.dnsProvisioner.GetDomainStatus(ctx, event.OperationID)
 	switch status {
 	case types.OperationStatusSuccessful:
-		slog.Info("Requested domain was provisioned for site %v", event.SiteID)
+		slog.Info("Requested domain was provisioned for site", "siteID", event.SiteID)
 	default:
-		slog.Info("Domain is not provisioned yet for site %v", event.SiteID)
+		slog.Info("Domain is not provisioned yet for site", "siteID", event.SiteID)
 		return nil, nil
 	}
 

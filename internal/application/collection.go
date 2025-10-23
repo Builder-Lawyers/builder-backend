@@ -11,6 +11,7 @@ type Handlers struct {
 	*commands.DeleteSite
 	*commands.CreateTemplate
 	*commands.EnrichContent
+	*commands.UploadFile
 	*commands.ProvisionSite
 	*commands.ProvisionCDN
 	*commands.FinalizeProvision
