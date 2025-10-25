@@ -14,6 +14,7 @@ type OIDCConfig struct {
 	RedirectURL                string
 	ConfirmationExpirationMins int
 	IssuerURL                  string
+	GoogleIssuerURL            string
 	Mode                       string
 	TestUser                   *uuid.UUID
 }
@@ -39,6 +40,7 @@ func NewOIDCConfig() *OIDCConfig {
 		RedirectURL:                os.Getenv("SIGNUP_REDIRECT"),
 		ConfirmationExpirationMins: confirmationExpMin,
 		IssuerURL:                  os.Getenv("COGNITO_ISSUER"),
+		GoogleIssuerURL:            os.Getenv("GOOGLE_ISSUER"),
 		Mode:                       os.Getenv("MODE"),
 		TestUser:                   &testUserID,
 	}

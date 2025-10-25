@@ -11,6 +11,7 @@ import (
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/commands"
+	auth2 "github.com/Builder-Lawyers/builder-backend/internal/application/commands/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/query"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/build"
@@ -73,14 +74,14 @@ func Init() {
 		UpdateSite:        commands.NewUpdateSite(uowFactory),
 		CreateTemplate:    commands.NewCreateTemplate(uowFactory),
 		EnrichContent:     commands.NewEnrichContent(ai.NewOpenAIClient(ai.NewOpenAIConfig())),
-		UploadFile:        commands.NewUploadFile(uowFactory, s3),
+		UploadFile:        commands.NewUploadFile(uowFactory, s3, "images/"),
 		GetSite:           query.NewGetSite(provisionConfig, uowFactory, dnsProvisioner),
 		GetTemplate:       query.NewGetTemplate(uowFactory, s3, provisionConfig),
 		ProvisionSite:     commands.NewProvisionSite(provisionConfig, uowFactory, s3, templateBuild, dnsProvisioner, acmCerts),
 		ProvisionCDN:      commands.NewProvisionCDN(provisionConfig, uowFactory, dnsProvisioner),
 		FinalizeProvision: commands.NewFinalizeProvision(provisionConfig, uowFactory, dnsProvisioner),
 		DeactivateSite:    commands.NewDeactivateSite(uowFactory, dnsProvisioner),
-		Auth:              commands.NewAuth(uowFactory, oidcConfig, cfg),
+		Auth:              auth2.NewAuth(uowFactory, oidcConfig, cfg),
 		CheckDomain:       query.NewCheckDomain(dnsProvisioner),
 		SendMail:          commands.NewSendMail(mailServer, uowFactory),
 		Payment:           commands.NewPayment(uowFactory, paymentConfig),

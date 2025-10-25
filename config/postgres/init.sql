@@ -85,6 +85,10 @@ CREATE TABLE IF NOT EXISTS builder.confirmation_codes (
     expires_at TIMESTAMPTZ NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS builder.files (
+    id UUID PRIMARY KEY
+);
+
 insert into builder.users (id, stripe_id, status, email, created_at) values ('021804b8-5071-7049-7034-8853ffd88039',  'cus_SzleNRbLmsHvcs','Confirmed', 'sanity@mailinator.com', CURRENT_TIMESTAMP);
 insert into builder.templates(name) VALUES ('template-v1');
 insert into builder.templates(name) VALUES ('template-v2');

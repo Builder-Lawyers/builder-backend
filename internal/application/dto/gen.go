@@ -115,6 +115,12 @@ type GetSiteResponse struct {
 // GetSiteResponseHealthCheckStatus defines model for GetSiteResponse.HealthCheckStatus.
 type GetSiteResponseHealthCheckStatus string
 
+// OauthTokenVerified defines model for OauthTokenVerified.
+type OauthTokenVerified struct {
+	Email  string `json:"email"`
+	UserID string `json:"userID"`
+}
+
 // PaymentStatusResponse defines model for PaymentStatusResponse.
 type PaymentStatusResponse struct {
 	PaymentIntentID     string `json:"paymentIntentID"`
@@ -163,6 +169,11 @@ type VerifyCode struct {
 	Code string `json:"code"`
 }
 
+// VerifyOauthToken defines model for VerifyOauthToken.
+type VerifyOauthToken struct {
+	IdToken string `json:"idToken"`
+}
+
 // BadRequestError defines model for BadRequestError.
 type BadRequestError = ErrorResponse
 
@@ -185,6 +196,9 @@ type EnrichContentJSONRequestBody = EnrichContentRequest
 
 // CreateConfirmationJSONRequestBody defines body for CreateConfirmation for application/json ContentType.
 type CreateConfirmationJSONRequestBody = CreateConfirmation
+
+// VerifyOauthTokenJSONRequestBody defines body for VerifyOauthToken for application/json ContentType.
+type VerifyOauthTokenJSONRequestBody = VerifyOauthToken
 
 // CreateSessionJSONRequestBody defines body for CreateSession for application/json ContentType.
 type CreateSessionJSONRequestBody = CreateSession

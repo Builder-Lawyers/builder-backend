@@ -18,6 +18,9 @@ type ServerInterface interface {
 	// Creates a confirmation mail with code for user signup
 	// (POST /auth/confirmation)
 	CreateConfirmation(c *fiber.Ctx) error
+	// Verifies provided oauth2 id_token
+	// (POST /auth/oauth/verify)
+	VerifyOauthToken(c *fiber.Ctx) error
 	// Gets a session from access token
 	// (POST /auth/session)
 	CreateSession(c *fiber.Ctx) error
@@ -76,6 +79,12 @@ func (siw *ServerInterfaceWrapper) EnrichContent(c *fiber.Ctx) error {
 func (siw *ServerInterfaceWrapper) CreateConfirmation(c *fiber.Ctx) error {
 
 	return siw.Handler.CreateConfirmation(c)
+}
+
+// VerifyOauthToken operation middleware
+func (siw *ServerInterfaceWrapper) VerifyOauthToken(c *fiber.Ctx) error {
+
+	return siw.Handler.VerifyOauthToken(c)
 }
 
 // CreateSession operation middleware
@@ -240,6 +249,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Post(options.BaseURL+"/ai/enrich", wrapper.EnrichContent)
 
 	router.Post(options.BaseURL+"/auth/confirmation", wrapper.CreateConfirmation)
+
+	router.Post(options.BaseURL+"/auth/oauth/verify", wrapper.VerifyOauthToken)
 
 	router.Post(options.BaseURL+"/auth/session", wrapper.CreateSession)
 

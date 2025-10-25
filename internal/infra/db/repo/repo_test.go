@@ -1,8 +1,7 @@
-package repo
+package repo_test
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -10,58 +9,26 @@ import (
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/db/repo"
+	"github.com/Builder-Lawyers/builder-backend/internal/testinfra"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-var pool *pgxpool.Pool
-var terminateContainer func()
+var uowFactory *dbs.UOWFactory
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
 
-	pgContainer, err := postgres.Run(ctx,
-		"postgres:17.2-alpine",
-		postgres.WithDatabase("testdb"),
-		postgres.WithUsername("testuser"),
-		postgres.WithPassword("testpass"),
-		postgres.WithInitScripts("init.sql"),
-		testcontainers.WithWaitStrategy(wait.ForListeningPort("5432/tcp")),
-	)
-	if err != nil {
-		log.Fatalf("could not start postgres container: %s", err)
-	}
-
-	terminateContainer = func() {
-		_ = pgContainer.Terminate(ctx)
-	}
-
-	// Create pgx pool
-	dsn, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		log.Fatalf("could not get connection string: %s", err)
-	}
-
-	pool, err = pgxpool.New(ctx, dsn)
-	if err != nil {
-		log.Fatalf("could not create pgx pool: %s", err)
-	}
-
+	uowFactory = dbs.NewUoWFactory(testinfra.Pool)
 	code := m.Run()
 
-	fmt.Println("Closing pool")
-	pool.Close()
-	terminateContainer()
+	cleanup(ctx)
 
 	os.Exit(code)
 }
 
 func TestInsertProvisionSuccessIfValidFields(t *testing.T) {
-	uowFactory := dbs.NewUoWFactory(pool)
 	uow := uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	require.NoError(t, err)
@@ -79,8 +46,7 @@ func TestInsertProvisionSuccessIfValidFields(t *testing.T) {
 	}
 
 	ctx := context.Background()
-
-	provisionRepo := NewProvisionRepo(tx)
+	provisionRepo := repo.NewProvisionRepo(tx)
 
 	err = provisionRepo.InsertProvision(ctx, provision)
 	require.NoError(t, err)
@@ -96,7 +62,6 @@ func TestInsertProvisionSuccessIfValidFields(t *testing.T) {
 }
 
 func TestGetProvisionReturnsProvisionIfExists(t *testing.T) {
-	uowFactory := dbs.NewUoWFactory(pool)
 	uow := uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	require.NoError(t, err)
@@ -111,8 +76,7 @@ func TestGetProvisionReturnsProvisionIfExists(t *testing.T) {
 		UpdatedAt: time.Now().Truncate(0),
 	}
 
-	provisionRepo := NewProvisionRepo(tx)
-
+	provisionRepo := repo.NewProvisionRepo(tx)
 	ctx := context.Background()
 
 	err = provisionRepo.InsertProvision(ctx, provision)
@@ -128,4 +92,11 @@ func TestGetProvisionReturnsProvisionIfExists(t *testing.T) {
 	require.WithinDuration(t, provision.CreatedAt, insertedProvision.CreatedAt, time.Microsecond)
 	require.WithinDuration(t, provision.UpdatedAt, insertedProvision.UpdatedAt, time.Microsecond)
 	require.NotNil(t, insertedProvision, "expected to be a valid struct")
+}
+
+func cleanup(ctx context.Context) {
+	_, err := testinfra.Pool.Exec(ctx, "DELETE FROM builder.provisions")
+	if err != nil {
+		log.Panicf("err cleaning up repo test %v", err)
+	}
 }

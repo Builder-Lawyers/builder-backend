@@ -1,8 +1,9 @@
-package commands
+package auth
 
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
+	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider/types"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -163,11 +165,11 @@ func (c *Auth) CreateConfirmationCode(ctx context.Context, req *dto.CreateConfir
 	return nil
 }
 
-func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (dto.VerifiedUser, error) {
+func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.VerifiedUser, error) {
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
-		return dto.VerifiedUser{}, err
+		return nil, err
 	}
 
 	var userID uuid.UUID
@@ -175,11 +177,11 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (dto.Verifie
 	var expiresAt time.Time
 	err = tx.QueryRow(ctx, "SELECT user_id, email, expires_at FROM builder.confirmation_codes WHERE code = $1", req.Code).Scan(&userID, &email, &expiresAt)
 	if err != nil {
-		return dto.VerifiedUser{}, fmt.Errorf("err getting confirmation code, %v", err)
+		return nil, fmt.Errorf("err getting confirmation code, %v", err)
 	}
 
 	if expiresAt.After(time.Now()) {
-		return dto.VerifiedUser{}, fmt.Errorf("code is expired")
+		return nil, fmt.Errorf("code is expired")
 	}
 
 	input := &cognitoidentityprovider.AdminConfirmSignUpInput{
@@ -189,22 +191,88 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (dto.Verifie
 
 	_, err = c.cognito.AdminConfirmSignUp(context.Background(), input)
 	if err != nil {
-		return dto.VerifiedUser{}, fmt.Errorf("failed to confirm user: %v", err)
+		return nil, fmt.Errorf("failed to confirm user: %v", err)
 	}
 
 	_, err = tx.Exec(ctx, "UPDATE builder.users SET status = $1 WHERE id = $2", consts.UserConfirmed, userID)
 	if err != nil {
-		return dto.VerifiedUser{}, fmt.Errorf("err updating user status, %v", err)
+		return nil, fmt.Errorf("err updating user status, %v", err)
 	}
 
 	// TODO: send registration success mail
 
 	err = uow.Commit()
 	if err != nil {
-		return dto.VerifiedUser{}, err
+		return nil, err
 	}
 
-	return dto.VerifiedUser{
+	return &dto.VerifiedUser{
+		UserID: userID.String(),
+	}, nil
+}
+
+func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto.OauthTokenVerified, error) {
+
+	claims, err := c.verifyGoogleIDToken(req.IdToken)
+	if err != nil {
+		return nil, err
+	}
+
+	email := claims["email"].(string)
+	sub := claims["sub"].(string)
+	slog.Info(sub)
+
+	var userID uuid.UUID
+	adminCreateResponse, err := c.cognito.AdminCreateUser(ctx, &cognitoidentityprovider.AdminCreateUserInput{
+		UserPoolId: &c.cfg.UserPoolID,
+		Username:   &email,
+		UserAttributes: []types.AttributeType{
+			{Name: aws.String("email"), Value: aws.String(email)},
+			{Name: aws.String("email_verified"), Value: aws.String("true")},
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("admin create: %v", err)
+	}
+	for _, attribute := range adminCreateResponse.User.Attributes {
+		if *attribute.Name == "sub" {
+			userID = uuid.MustParse(*attribute.Value)
+		}
+	}
+
+	//_, err = c.cognito.AdminConfirmSignUp(context.Background(), input)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to confirm user: %v", err)
+	//}
+
+	uow := c.uowFactory.GetUoW()
+	tx, err := uow.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = tx.Exec(ctx, "INSERT INTO builder.users(id, status, email, created_at)",
+		userID, consts.UserConfirmed, email, time.Now())
+	if err != nil {
+		return nil, fmt.Errorf("err inserting user, %v", err)
+	}
+
+	session := db.Session{
+		ID:           uuid.New(),
+		UserID:       userID,
+		RefreshToken: "",
+		IssuedAt:     time.Now(),
+	}
+
+	_, err = tx.Exec(ctx, "INSERT INTO builder.sessions(id, user_id, refresh_token, issued_at) VALUES ($1,$2,$3,$4)",
+		session.ID, session.UserID, session.RefreshToken, session.IssuedAt)
+
+	err = uow.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.OauthTokenVerified{
 		UserID: userID.String(),
 	}, nil
 }
@@ -229,6 +297,24 @@ func (c *Auth) GetIdentity(ctx context.Context, id uuid.UUID) (*auth.Identity, e
 	}
 
 	return &identity, nil
+}
+
+func (c *Auth) verifyGoogleIDToken(idToken string) (map[string]any, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+
+	jwks, err := keyfunc.NewDefaultCtx(ctx, []string{c.cfg.IssuerURL})
+	cancel()
+	if err != nil {
+		return nil, fmt.Errorf("fetch jwks: %v", err)
+	}
+
+	claims := jwt.MapClaims{}
+	_, err = jwt.ParseWithClaims(idToken, claims, jwks.Keyfunc, jwt.WithLeeway(10*time.Second))
+	if err != nil {
+		return nil, fmt.Errorf("parse token: %v", err)
+	}
+
+	return claims, nil
 }
 
 func createUserFromClaims(claims jwt.MapClaims) (*db.User, error) {

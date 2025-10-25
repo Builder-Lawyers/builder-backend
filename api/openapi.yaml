@@ -309,6 +309,37 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /auth/oauth/verify:
+    post:
+      summary: Verifies provided oauth2 id_token
+      description: Verifies provided oauth2 id_token, creates a user and returns a session upon success
+      operationId: verifyOauthToken
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOauthToken'
+      responses:
+        '201':
+          description: Session ID in cookie
+          headers:
+            Set-Cookie:
+              description: Session cookie (HttpOnly)
+              schema:
+                type: string
+                example: ID=abc123; HttpOnly; Path=/; Secure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OauthTokenVerified'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /payments:
     post:
       summary: Gets a client secret to create a payment
@@ -587,6 +618,28 @@ components:
           example: 021804b8-5071-7049-7034-8853ffd88039
       required:
         - code
+
+    VerifyOauthToken:
+      type: object
+      properties:
+        idToken:
+          type: string
+          example: 3ad6c7c6-c119-475.1203213adssajd.23eqwsaedsa
+      required:
+        - idToken
+
+    OauthTokenVerified:
+      type: object
+      properties:
+        userID:
+          type: string
+          example: 021804b8-5071-7049-7034-8853ffd88039
+        email:
+          type: string
+          example: example@gmail.com
+      required:
+        - userID
+        - email
 
     VerifiedUser:
       type: object

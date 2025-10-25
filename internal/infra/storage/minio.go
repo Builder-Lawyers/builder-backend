@@ -84,7 +84,7 @@ func (s *Storage) ListFiles(ctx context.Context, limit int32, input *s3.ListObje
 		i++
 		page, err := p.NextPage(ctx)
 		if err != nil {
-			slog.Error("failed to get page ", "err", err)
+			slog.Error("failed to get page", "err", err)
 		}
 		for _, obj := range page.Contents {
 			files = append(files, *obj.Key)

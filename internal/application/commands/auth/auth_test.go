@@ -1,101 +1,53 @@
-package commands
+package auth_test
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
 
+	sut "github.com/Builder-Lawyers/builder-backend/internal/application/commands/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
+	"github.com/Builder-Lawyers/builder-backend/internal/testinfra"
 	"github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider/types"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-var pool *pgxpool.Pool
 var cognitoClient *cognitoidentityprovider.Client
 var cognitoPoolID string
 var cognitoClientID string
-var awsCfg aws.Config
+
+//var (
+//	authSetupOnce sync.Once
+//	authDeps      *awsC
+//)
+//
+//func setupAuthDepsOnce(t *testing.T) {
+//	authSetupOnce.Do(func() {
+//		// build cognitoClient etc once
+//		authDeps = newAuthDeps()
+//	})
+//}
 
 func TestMain(m *testing.M) {
+	awsCfg := testinfra.AwsCfg
 
-	ctx := context.Background()
-
-	pgReq := testcontainers.ContainerRequest{
-		Image:        "postgres:17.2-alpine",
-		ExposedPorts: []string{"5432/tcp"},
-		Env: map[string]string{
-			"POSTGRES_PASSWORD": "password",
-			"POSTGRES_USER":     "postgres",
-			"POSTGRES_DB":       "testdb",
-		},
-		WaitingFor: wait.ForLog("database system is ready to accept connections"),
-	}
-	pgC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: pgReq,
-		Started:          true,
-	})
-	if err != nil {
-		log.Panicf("start postgres: %v", err)
-	}
-	defer pgC.Terminate(ctx)
-
-	pgHostPort, err := pgC.Endpoint(ctx, "")
-	if err != nil {
-		log.Panicf("postgres endpoint: %v", err)
-	}
-	pgDSN := fmt.Sprintf("postgres://postgres:password@%s/testdb?sslmode=disable", pgHostPort)
-	time.Sleep(1 * time.Second)
-
-	pool, err = pgxpool.New(ctx, pgDSN)
-	if err != nil {
-		log.Panicf("pgxpool connect: %v", err)
-	}
-	defer pool.Close()
-
-	_, err = pool.Exec(ctx, `
-		CREATE SCHEMA IF NOT EXISTS builder;
-		CREATE TABLE IF NOT EXISTS builder.users (
-		  id UUID PRIMARY KEY,
-		  email TEXT UNIQUE NOT NULL
-		);
-		CREATE TABLE IF NOT EXISTS builder.sessions (
-		  id UUID PRIMARY KEY,
-		  user_id UUID NOT NULL REFERENCES builder.users(id),
-		  refresh_token TEXT,
-		  issued_at TIMESTAMP WITH TIME ZONE
-		);
-	`)
-	if err != nil {
-		log.Panicf("create tables: %v", err)
-	}
-
-	awsCfg, err = awsConfig.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		log.Panic("can't load aws config", err)
-	}
 	cognitoPoolID = os.Getenv("COGNITO_POOL_ID")
 	cognitoClientID = os.Getenv("COGNITO_CLIENT_ID")
 	cognitoClient = cognitoidentityprovider.NewFromConfig(awsCfg, func(o *cognitoidentityprovider.Options) {
-		o.Region = awsCfg.Region
+		o.Region = "us-east-1"
 	})
 
 	code := m.Run()
 
-	pool.Close()
 	slog.Info("Tests are completed")
 
 	os.Exit(code)
@@ -110,7 +62,7 @@ func Test_CreateSession_Given_Existing_User_When_Called_Then_Create_Session_And_
 	req, err := getRequest(ctx, email)
 	require.NoError(t, err)
 	fmt.Println(req)
-	SUT := NewAuth(db.NewUoWFactory(pool), auth.NewOIDCConfig(), awsCfg)
+	SUT := sut.NewAuth(db.NewUoWFactory(testinfra.Pool), auth.NewOIDCConfig(), testinfra.AwsCfg)
 
 	sessionID, err := SUT.CreateSession(ctx, req)
 	require.NoError(t, err)
@@ -119,7 +71,7 @@ func Test_CreateSession_Given_Existing_User_When_Called_Then_Create_Session_And_
 	var foundUserID uuid.UUID
 	var rt sql.NullString
 	var issuedAt time.Time
-	row := pool.QueryRow(ctx, `SELECT user_id, refresh_token, issued_at FROM builder.sessions WHERE id = $1`, sessionID)
+	row := testinfra.Pool.QueryRow(ctx, `SELECT user_id, refresh_token, issued_at FROM builder.sessions WHERE id = $1`, sessionID)
 	err = row.Scan(&foundUserID, &rt, &issuedAt)
 	require.NoError(t, err)
 	require.Equal(t, *userID, foundUserID, "session user mismatch")
@@ -184,7 +136,7 @@ func createUser(ctx context.Context, email string) (*uuid.UUID, error) {
 		return nil, fmt.Errorf("admin set userPassword: %w", err)
 	}
 
-	_, err = pool.Exec(ctx, `INSERT INTO builder.users (id, email) VALUES ($1,$2)`, userID, email)
+	_, err = testinfra.Pool.Exec(ctx, `INSERT INTO builder.users (id, email) VALUES ($1,$2)`, userID, email)
 	if err != nil {
 		return nil, fmt.Errorf("user insert: %w", err)
 	}
@@ -205,5 +157,5 @@ func clearTestState(t testing.TB, email string) {
 		Username:   aws.String(email),
 	})
 
-	_, _ = pool.Exec(ctx, `DELETE FROM builder.users WHERE email=$1`, email)
+	_, _ = testinfra.Pool.Exec(ctx, `DELETE FROM builder.users WHERE email=$1`, email)
 }

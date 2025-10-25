@@ -2,7 +2,6 @@ package rest
 
 import (
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -220,6 +219,20 @@ func (s *Server) VerifyUser(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(verifiedUser)
 }
 
+func (s *Server) VerifyOauthToken(c *fiber.Ctx) error {
+	var req dto.VerifyOauthToken
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	verifiedUser, err := s.handlers.Auth.VerifyOauth(c.UserContext(), &req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(verifiedUser)
+}
+
 func (s *Server) CreatePayment(c *fiber.Ctx) error {
 	var req dto.CreatePaymentRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -254,7 +267,6 @@ func (s *Server) GetPaymentStatus(c *fiber.Ctx, id string) error {
 
 func (s *Server) HandleEvent(c *fiber.Ctx) error {
 
-	slog.Info("ARRIVED")
 	signatureHeader := c.Get("Stripe-Signature")
 
 	err := s.handlers.Payment.Webhook(c.UserContext(), c.Body(), signatureHeader)

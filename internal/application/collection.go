@@ -2,6 +2,7 @@ package application
 
 import (
 	"github.com/Builder-Lawyers/builder-backend/internal/application/commands"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/commands/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/query"
 )
 
@@ -17,7 +18,7 @@ type Handlers struct {
 	*commands.FinalizeProvision
 	*commands.DeactivateSite
 	*commands.SendMail
-	*commands.Auth
+	*auth.Auth
 	*commands.Payment
 	*query.GetSite
 	*query.CheckDomain

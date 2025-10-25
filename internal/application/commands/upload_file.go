@@ -14,10 +14,11 @@ import (
 type UploadFile struct {
 	uowFactory *dbs.UOWFactory
 	storage    *storage.Storage
+	path       string
 }
 
-func NewUploadFile(factory *dbs.UOWFactory, storage *storage.Storage) *UploadFile {
-	return &UploadFile{uowFactory: factory, storage: storage}
+func NewUploadFile(factory *dbs.UOWFactory, storage *storage.Storage, path string) *UploadFile {
+	return &UploadFile{uowFactory: factory, storage: storage, path: path}
 }
 
 func (c *UploadFile) Execute(ctx context.Context, fileHeader *multipart.FileHeader) (*dto.FileUploadedResponse, error) {
@@ -29,9 +30,25 @@ func (c *UploadFile) Execute(ctx context.Context, fileHeader *multipart.FileHead
 
 	fileID := uuid.New()
 	contentType := fileHeader.Header.Get("Content-Type")
-	fileURL, err := c.storage.UploadFile(ctx, fmt.Sprintf("images/%s", fileID.String()), &contentType, f)
+	fileURL, err := c.storage.UploadFile(ctx, fmt.Sprintf("%s%s", c.path, fileID.String()), &contentType, f)
 	if err != nil {
 		return nil, fmt.Errorf("err uploading to s3, %v", err)
+	}
+
+	uow := c.uowFactory.GetUoW()
+	tx, err := uow.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = tx.Exec(ctx, "INSERT INTO builder.files(id) VALUES($1)", fileID)
+	if err != nil {
+		return nil, fmt.Errorf("err inserting file to db %v", err)
+	}
+
+	err = uow.Commit()
+	if err != nil {
+		return nil, err
 	}
 
 	// TODO: define what is needed to save, add files table
