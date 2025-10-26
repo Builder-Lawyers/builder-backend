@@ -120,7 +120,6 @@ func createUser(ctx context.Context, email string) (*uuid.UUID, error) {
 		return nil, fmt.Errorf("admin create: %w", err)
 	}
 	for _, attribute := range adminCreateResponse.User.Attributes {
-		fmt.Printf("AttName:%v VAL: %v\n", *attribute.Name, *attribute.Value)
 		if *attribute.Name == "sub" {
 			userID = uuid.MustParse(*attribute.Value)
 		}

@@ -180,7 +180,7 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 		return nil, fmt.Errorf("err getting confirmation code, %v", err)
 	}
 
-	if expiresAt.After(time.Now()) {
+	if expiresAt.Before(time.Now()) {
 		return nil, fmt.Errorf("code is expired")
 	}
 

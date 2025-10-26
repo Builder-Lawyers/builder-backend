@@ -1,7 +1,6 @@
 package config
 
 import (
-	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -28,7 +27,6 @@ func NewProvisionConfig() *ProvisionConfig {
 	if err != nil {
 		panic(err)
 	}
-	slog.Info("Current working directory: %v", "config", wd)
 	parent := filepath.Dir(wd)
 	buildFolder := filepath.Join(parent, "templates-repo")
 	templatesFolder := filepath.Join(buildFolder, "templates")

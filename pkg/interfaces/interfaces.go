@@ -7,6 +7,7 @@ type UoW interface {
 	Rollback() error
 	Begin() (pgx.Tx, error)
 	GetTx() pgx.Tx
+	Finalize(err *error)
 }
 
 type Event interface {

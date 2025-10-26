@@ -51,6 +51,15 @@ func (u *UOW) Rollback() error {
 	return u.Tx.Rollback(context.Background())
 }
 
+func (u *UOW) Finalize(err *error) {
+	if *err != nil {
+		_ = u.Rollback()
+		slog.Debug("tx rollbacked")
+		return
+	}
+	_ = u.Commit()
+}
+
 func (u *UOW) GetTx() pgx.Tx {
 	return u.Tx
 }
