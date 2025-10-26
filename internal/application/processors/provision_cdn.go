@@ -1,4 +1,4 @@
-package commands
+package processors
 
 import (
 	"context"
@@ -16,13 +16,13 @@ import (
 )
 
 type ProvisionCDN struct {
-	cfg            *config.ProvisionConfig
+	cfg            config.ProvisionConfig
 	uowFactory     *dbs.UOWFactory
 	dnsProvisioner *dns.DNSProvisioner
 }
 
 func NewProvisionCDN(
-	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, dns *dns.DNSProvisioner,
+	cfg config.ProvisionConfig, factory *dbs.UOWFactory, dns *dns.DNSProvisioner,
 ) *ProvisionCDN {
 	return &ProvisionCDN{
 		cfg,

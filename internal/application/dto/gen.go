@@ -115,6 +115,20 @@ type GetSiteResponse struct {
 // GetSiteResponseHealthCheckStatus defines model for GetSiteResponse.HealthCheckStatus.
 type GetSiteResponseHealthCheckStatus string
 
+// ListTemplateInfo defines model for ListTemplateInfo.
+type ListTemplateInfo struct {
+	Elements []TemplateInfo `json:"elements"`
+	HasNext  bool           `json:"hasNext"`
+	Page     int            `json:"page"`
+	Total    int            `json:"total"`
+}
+
+// ListTemplatePaginator defines model for ListTemplatePaginator.
+type ListTemplatePaginator struct {
+	Page *int `json:"page,omitempty"`
+	Size *int `json:"size,omitempty"`
+}
+
 // OauthTokenVerified defines model for OauthTokenVerified.
 type OauthTokenVerified struct {
 	Email  string `json:"email"`
@@ -134,6 +148,8 @@ type StripeWebhookRequest map[string]interface{}
 
 // TemplateInfo defines model for TemplateInfo.
 type TemplateInfo struct {
+	Id int `json:"id"`
+
 	// Structure pages.json file
 	Structure    string `json:"structure"`
 	TemplateName string `json:"templateName"`
@@ -180,6 +196,9 @@ type BadRequestError = ErrorResponse
 // InternalServerError defines model for InternalServerError.
 type InternalServerError = ErrorResponse
 
+// NotFoundError defines model for NotFoundError.
+type NotFoundError = ErrorResponse
+
 // UnauthorizedError defines model for UnauthorizedError.
 type UnauthorizedError = ErrorResponse
 
@@ -223,3 +242,6 @@ type UpdateSiteJSONRequestBody = UpdateSiteRequest
 
 // CreateTemplateJSONRequestBody defines body for CreateTemplate for application/json ContentType.
 type CreateTemplateJSONRequestBody = CreateTemplateRequest
+
+// ListTemplatesJSONRequestBody defines body for ListTemplates for application/json ContentType.
+type ListTemplatesJSONRequestBody = ListTemplatePaginator

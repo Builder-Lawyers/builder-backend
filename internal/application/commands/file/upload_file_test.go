@@ -1,4 +1,4 @@
-package commands_test
+package file_test
 
 import (
 	"bytes"
@@ -13,10 +13,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Builder-Lawyers/builder-backend/internal/application/commands"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/commands/file"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/storage"
 	"github.com/Builder-Lawyers/builder-backend/internal/testinfra"
 	"github.com/Builder-Lawyers/builder-backend/pkg/db"
+	"github.com/Builder-Lawyers/builder-backend/pkg/env"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -26,8 +27,9 @@ import (
 
 var s3Storage *storage.Storage
 var s3Client *s3.Client
+var uowFactory = db.NewUoWFactory(testinfra.Pool)
 var bucketName = "sanity-web"
-var prefix = "test-images/"
+var prefix = env.GetEnv("UPLOAD_PREFIX", "test-images/")
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
@@ -35,7 +37,6 @@ func TestMain(m *testing.M) {
 		o.UsePathStyle = true
 	})
 	s3Storage = storage.NewStorage(testinfra.AwsCfg)
-
 	exitCode := m.Run()
 
 	slog.Info("Finished uploadFile tests")
@@ -47,8 +48,8 @@ func TestMain(m *testing.M) {
 
 func Test_Upload_File_When_Called_With_Valid_File_Then_Inserted_In_DB_And_Uploaded_To_S3(t *testing.T) {
 	ctx := context.Background()
-
-	SUT := commands.NewUploadFile(db.NewUoWFactory(testinfra.Pool), s3Storage, prefix)
+	uploadConfig := file.NewUploadConfig()
+	SUT := file.NewUploadFile(uowFactory, s3Storage, uploadConfig)
 
 	resp, err := SUT.Execute(ctx, getRequestFileHeader())
 	require.NoError(t, err)

@@ -57,9 +57,12 @@ type ServerInterface interface {
 	// Create a new template
 	// (POST /template)
 	CreateTemplate(c *fiber.Ctx) error
+	// Gets template list with pagination
+	// (POST /template/list)
+	ListTemplates(c *fiber.Ctx) error
 	// Gets template info
 	// (GET /template/{id})
-	GetTemplate(c *fiber.Ctx, id uint8) error
+	GetTemplate(c *fiber.Ctx, id uint16) error
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -209,13 +212,19 @@ func (siw *ServerInterfaceWrapper) CreateTemplate(c *fiber.Ctx) error {
 	return siw.Handler.CreateTemplate(c)
 }
 
+// ListTemplates operation middleware
+func (siw *ServerInterfaceWrapper) ListTemplates(c *fiber.Ctx) error {
+
+	return siw.Handler.ListTemplates(c)
+}
+
 // GetTemplate operation middleware
 func (siw *ServerInterfaceWrapper) GetTemplate(c *fiber.Ctx) error {
 
 	var err error
 
 	// ------------- Path parameter "id" -------------
-	var id uint8
+	var id uint16
 
 	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Params("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
@@ -275,6 +284,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Patch(options.BaseURL+"/sites/:id", wrapper.UpdateSite)
 
 	router.Post(options.BaseURL+"/template", wrapper.CreateTemplate)
+
+	router.Post(options.BaseURL+"/template/list", wrapper.ListTemplates)
 
 	router.Get(options.BaseURL+"/template/:id", wrapper.GetTemplate)
 

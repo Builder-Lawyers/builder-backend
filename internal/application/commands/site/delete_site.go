@@ -1,4 +1,4 @@
-package commands
+package site
 
 import (
 	"context"
@@ -29,6 +29,7 @@ func (c *DeleteSite) Execute(ctx context.Context, siteID uint64, identity *auth.
 	if err != nil {
 		return err
 	}
+	defer uow.Finalize(&err)
 
 	var createdAt time.Time
 	err = tx.QueryRow(ctx, "SELECT created_at FROM builder.sites WHERE id = $1 AND creator_id = $2",
@@ -49,11 +50,6 @@ func (c *DeleteSite) Execute(ctx context.Context, siteID uint64, identity *auth.
 	err = eventRepo.InsertEvent(ctx, deactivateSiteEvent)
 	if err != nil {
 		return fmt.Errorf("err inserting event, %v", err)
-	}
-
-	err = uow.Commit()
-	if err != nil {
-		return err
 	}
 
 	return nil

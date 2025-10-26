@@ -25,18 +25,6 @@ var cognitoClient *cognitoidentityprovider.Client
 var cognitoPoolID string
 var cognitoClientID string
 
-//var (
-//	authSetupOnce sync.Once
-//	authDeps      *awsC
-//)
-//
-//func setupAuthDepsOnce(t *testing.T) {
-//	authSetupOnce.Do(func() {
-//		// build cognitoClient etc once
-//		authDeps = newAuthDeps()
-//	})
-//}
-
 func TestMain(m *testing.M) {
 	awsCfg := testinfra.AwsCfg
 
@@ -62,7 +50,7 @@ func Test_CreateSession_Given_Existing_User_When_Called_Then_Create_Session_And_
 	req, err := getRequest(ctx, email)
 	require.NoError(t, err)
 	fmt.Println(req)
-	SUT := sut.NewAuth(db.NewUoWFactory(testinfra.Pool), auth.NewOIDCConfig(), testinfra.AwsCfg)
+	SUT := sut.NewAuth(db.NewUoWFactory(testinfra.Pool), auth.NewOIDCConfig(), cognitoClient)
 
 	sessionID, err := SUT.CreateSession(ctx, req)
 	require.NoError(t, err)

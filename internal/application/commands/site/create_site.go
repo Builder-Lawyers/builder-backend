@@ -1,4 +1,4 @@
-package commands
+package site
 
 import (
 	"context"
@@ -27,6 +27,8 @@ func (c *CreateSite) Execute(ctx context.Context, req *dto.CreateSiteRequest, id
 	if err != nil {
 		return 0, err
 	}
+	defer uow.Finalize(&err)
+
 	newSite := db.Site{
 		TemplateID: req.TemplateID,
 		CreatorID:  identity.UserID,
@@ -44,8 +46,5 @@ func (c *CreateSite) Execute(ctx context.Context, req *dto.CreateSiteRequest, id
 		return 0, fmt.Errorf("insert failed: %v", err)
 	}
 
-	if err = uow.Commit(); err != nil {
-		return 0, err
-	}
 	return newSite.ID, nil
 }

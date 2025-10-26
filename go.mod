@@ -3,9 +3,9 @@ module github.com/Builder-Lawyers/builder-backend
 go 1.24.5
 
 require (
-	github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20250831173650-8f2fe869ec6a
-	github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20250831173650-8f2fe869ec6a
-	github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20250831173650-8f2fe869ec6a
+	github.com/Builder-Lawyers/builder-backend/pkg/db v0.0.0-20251026114449-8cfdfca40d53
+	github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20251025165013-c3f7a720fe16
+	github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20251026114449-8cfdfca40d53
 	github.com/MicahParks/keyfunc/v3 v3.6.1
 	github.com/aws/aws-sdk-go-v2 v1.39.3
 	github.com/aws/aws-sdk-go-v2/config v1.27.5
@@ -19,7 +19,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.7.5
+	github.com/jackc/pgx/v5 v5.7.6
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/openai/openai-go v1.12.0
 	github.com/stretchr/testify v1.10.0
@@ -127,13 +127,13 @@ require (
 	go.opentelemetry.io/otel/metric v1.37.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.37.0 // indirect
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
-	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/mod v0.26.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/crypto v0.43.0 // indirect
+	golang.org/x/mod v0.28.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
+	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
-	golang.org/x/tools v0.35.0 // indirect
+	golang.org/x/tools v0.37.0 // indirect
 	google.golang.org/grpc v1.75.0 // indirect
 	google.golang.org/protobuf v1.36.7 // indirect
 	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect

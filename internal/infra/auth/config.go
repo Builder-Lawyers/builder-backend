@@ -19,7 +19,7 @@ type OIDCConfig struct {
 	TestUser                   *uuid.UUID
 }
 
-func NewOIDCConfig() *OIDCConfig {
+func NewOIDCConfig() OIDCConfig {
 	var testUserID uuid.UUID
 	testUser := os.Getenv("TEST_USER")
 	if testUser != "" {
@@ -27,7 +27,7 @@ func NewOIDCConfig() *OIDCConfig {
 		testUserID, err = uuid.Parse(testUser)
 		if err != nil {
 			slog.Error("error getting test user ID", "err", err)
-			return nil
+			return OIDCConfig{}
 		}
 	}
 	confirmationExpMin, err := strconv.Atoi(env.GetEnv("SIGNUP_CONFIRM_EXP", "60"))
@@ -35,7 +35,7 @@ func NewOIDCConfig() *OIDCConfig {
 		slog.Error("err parsing SIGNUP_CONFIRM_EXP, set to default", "err", err)
 		confirmationExpMin = 60
 	}
-	return &OIDCConfig{
+	return OIDCConfig{
 		UserPoolID:                 os.Getenv("COGNITO_POOL_ID"),
 		RedirectURL:                os.Getenv("SIGNUP_REDIRECT"),
 		ConfirmationExpirationMins: confirmationExpMin,

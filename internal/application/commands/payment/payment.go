@@ -1,4 +1,4 @@
-package commands
+package payment
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 
 type Payment struct {
 	uowFactory *dbs.UOWFactory
-	cfg        *PaymentConfig
+	cfg        PaymentConfig
 }
 
 type PaymentConfig struct {
@@ -37,15 +37,15 @@ type PaymentConfig struct {
 	returnUrl  string
 }
 
-func NewPaymentConfig() *PaymentConfig {
-	return &PaymentConfig{
+func NewPaymentConfig() PaymentConfig {
+	return PaymentConfig{
 		apiKey:     os.Getenv("STRIPE_KEY"),
 		webhookKey: os.Getenv("STRIPE_WEBHOOK"),
 		returnUrl:  os.Getenv("STRIPE_RETURN_URL"),
 	}
 }
 
-func NewPayment(uowFactory *dbs.UOWFactory, cfg *PaymentConfig) *Payment {
+func NewPayment(uowFactory *dbs.UOWFactory, cfg PaymentConfig) *Payment {
 	stripe.Key = cfg.apiKey
 	stripe.SetHTTPClient(&http.Client{Timeout: 10 * time.Second})
 	return &Payment{
@@ -61,6 +61,8 @@ func (c *Payment) CreatePayment(ctx context.Context, req *dto.CreatePaymentReque
 	if err != nil {
 		return "", err
 	}
+	// TODO: improve uow api to be able to only rollback at the end of a function, not commit
+	defer uow.Finalize(&err)
 	var existingSubID string
 	err = tx.QueryRow(ctx, "SELECT subscription_id FROM builder.sites WHERE id = $1", req.SiteID).Scan(&existingSubID)
 	if err != nil {

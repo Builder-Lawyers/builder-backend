@@ -1,4 +1,4 @@
-package commands
+package site
 
 import (
 	"context"
@@ -33,6 +33,8 @@ func (c *UpdateSite) Execute(ctx context.Context, siteID uint64, req *dto.Update
 	if err != nil {
 		return 0, err
 	}
+	defer uow.Finalize(&err)
+
 	err = tx.QueryRow(ctx, "SELECT creator_id, template_id, status, fields, subscription_id from builder.sites WHERE id = $1", siteID).Scan(
 		&site.CreatorID,
 		&site.TemplateID,
@@ -103,10 +105,6 @@ func (c *UpdateSite) Execute(ctx context.Context, siteID uint64, req *dto.Update
 				return 0, fmt.Errorf("error creating deactivate site event, %v", err)
 			}
 		}
-
-		if err = uow.Commit(); err != nil {
-			return 0, err
-		}
 		return siteID, nil
 
 	} else if req.Fields != nil {
@@ -115,10 +113,6 @@ func (c *UpdateSite) Execute(ctx context.Context, siteID uint64, req *dto.Update
 		if err != nil {
 			return 0, err
 		}
-		if err = uow.Commit(); err != nil {
-			return 0, err
-		}
-		// TODO: upload new json and rebuild minio prefix
 		return siteID, nil
 	}
 

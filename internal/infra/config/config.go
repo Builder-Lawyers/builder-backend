@@ -22,7 +22,7 @@ type Defaults struct {
 	CertARN  string
 }
 
-func NewProvisionConfig() *ProvisionConfig {
+func NewProvisionConfig() ProvisionConfig {
 	wd, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -30,7 +30,7 @@ func NewProvisionConfig() *ProvisionConfig {
 	parent := filepath.Dir(wd)
 	buildFolder := filepath.Join(parent, "templates-repo")
 	templatesFolder := filepath.Join(buildFolder, "templates")
-	return &ProvisionConfig{
+	return ProvisionConfig{
 		env.GetEnv("P_BUILD_FOLDER", buildFolder),
 		env.GetEnv("P_TEMPLATES_FOLDER", templatesFolder),
 		env.GetEnv("P_BUCKET_PATH", "templates-sources/"),

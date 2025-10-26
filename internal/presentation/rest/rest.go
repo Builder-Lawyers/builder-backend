@@ -15,11 +15,12 @@ import (
 var _ ServerInterface = (*Server)(nil)
 
 type Server struct {
-	handlers *application.Handlers
+	queries  *application.Queries
+	commands *application.Commands
 }
 
-func NewServer(handlers *application.Handlers) *Server {
-	return &Server{handlers: handlers}
+func NewServer(queries *application.Queries, commands *application.Commands) *Server {
+	return &Server{queries: queries, commands: commands}
 }
 
 func (s *Server) CreateSite(c *fiber.Ctx) error {
@@ -32,7 +33,7 @@ func (s *Server) CreateSite(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
-	siteID, err := s.handlers.CreateSite.Execute(c.UserContext(), &req, identity)
+	siteID, err := s.commands.CreateSite.Execute(c.UserContext(), &req, identity)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -54,7 +55,7 @@ func (s *Server) UpdateSite(c *fiber.Ctx, id uint64) error {
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
-	updatedSiteID, err := s.handlers.UpdateSite.Execute(c.UserContext(), id, &req, identity)
+	updatedSiteID, err := s.commands.UpdateSite.Execute(c.UserContext(), id, &req, identity)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -73,7 +74,7 @@ func (s *Server) DeleteSite(c *fiber.Ctx, id uint64) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	err = s.handlers.DeleteSite.Execute(c.UserContext(), id, identity)
+	err = s.commands.DeleteSite.Execute(c.UserContext(), id, identity)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -87,7 +88,7 @@ func (s *Server) CreateTemplate(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	templateID, err := s.handlers.CreateTemplate.Execute(c.UserContext(), &req)
+	templateID, err := s.commands.CreateTemplate.Execute(c.UserContext(), &req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -105,7 +106,7 @@ func (s *Server) EnrichContent(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	enrichContent, err := s.handlers.EnrichContent.Execute(c.UserContext(), &req)
+	enrichContent, err := s.commands.EnrichContent.Execute(c.UserContext(), &req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -123,7 +124,7 @@ func (s *Server) FileUpload(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	resp, err := s.handlers.UploadFile.Execute(c.UserContext(), fileHeader)
+	resp, err := s.commands.UploadFile.Execute(c.UserContext(), fileHeader)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -131,9 +132,9 @@ func (s *Server) FileUpload(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(resp)
 }
 
-func (s *Server) GetTemplate(c *fiber.Ctx, id uint8) error {
+func (s *Server) GetTemplate(c *fiber.Ctx, id uint16) error {
 
-	templateInfo, err := s.handlers.GetTemplate.Query(c.UserContext(), id)
+	templateInfo, err := s.queries.GetTemplate.Query(c.UserContext(), id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -141,9 +142,23 @@ func (s *Server) GetTemplate(c *fiber.Ctx, id uint8) error {
 	return c.Status(fiber.StatusOK).JSON(templateInfo)
 }
 
+func (s *Server) ListTemplates(c *fiber.Ctx) error {
+	var req dto.ListTemplatePaginator
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	resp, err := s.queries.GetTemplate.QueryList(c.UserContext(), &req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(resp)
+}
+
 func (s *Server) CheckDomain(c *fiber.Ctx, domain string) error {
 
-	available, err := s.handlers.CheckDomain.Query(c.UserContext(), domain)
+	available, err := s.queries.CheckDomain.Query(c.UserContext(), domain)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -160,7 +175,7 @@ func (s *Server) GetSite(c *fiber.Ctx, id uint64) error {
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
-	resp, err := s.handlers.GetSite.Query(c.UserContext(), id, identity)
+	resp, err := s.queries.GetSite.Query(c.UserContext(), id, identity)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -174,7 +189,7 @@ func (s *Server) CreateSession(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	sessionID, err := s.handlers.Auth.CreateSession(c.UserContext(), req)
+	sessionID, err := s.commands.Auth.CreateSession(c.UserContext(), req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -197,7 +212,7 @@ func (s *Server) CreateConfirmation(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	err := s.handlers.Auth.CreateConfirmationCode(c.UserContext(), &req)
+	err := s.commands.Auth.CreateConfirmationCode(c.UserContext(), &req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -211,7 +226,7 @@ func (s *Server) VerifyUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	verifiedUser, err := s.handlers.Auth.VerifyCode(c.UserContext(), &req)
+	verifiedUser, err := s.commands.Auth.VerifyCode(c.UserContext(), &req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -225,7 +240,7 @@ func (s *Server) VerifyOauthToken(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	verifiedUser, err := s.handlers.Auth.VerifyOauth(c.UserContext(), &req)
+	verifiedUser, err := s.commands.Auth.VerifyOauth(c.UserContext(), &req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -243,7 +258,7 @@ func (s *Server) CreatePayment(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
-	clientSecret, err := s.handlers.Payment.CreatePayment(c.UserContext(), &req, identity)
+	clientSecret, err := s.commands.Payment.CreatePayment(c.UserContext(), &req, identity)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -257,7 +272,7 @@ func (s *Server) CreatePayment(c *fiber.Ctx) error {
 
 func (s *Server) GetPaymentStatus(c *fiber.Ctx, id string) error {
 
-	paymentInfo, err := s.handlers.Payment.GetPaymentInfo(c.UserContext(), id)
+	paymentInfo, err := s.commands.Payment.GetPaymentInfo(c.UserContext(), id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -269,7 +284,7 @@ func (s *Server) HandleEvent(c *fiber.Ctx) error {
 
 	signatureHeader := c.Get("Stripe-Signature")
 
-	err := s.handlers.Payment.Webhook(c.UserContext(), c.Body(), signatureHeader)
+	err := s.commands.Payment.Webhook(c.UserContext(), c.Body(), signatureHeader)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -282,7 +297,7 @@ func (s *Server) getIdentity(c *fiber.Ctx) (*auth.Identity, error) {
 	if err != nil {
 		return nil, err
 	}
-	identity, err := s.handlers.Auth.GetIdentity(c.UserContext(), session)
+	identity, err := s.commands.Auth.GetIdentity(c.UserContext(), session)
 	if err != nil {
 		return nil, err
 	}

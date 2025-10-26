@@ -1,4 +1,4 @@
-package commands
+package file
 
 import (
 	"context"
@@ -8,17 +8,28 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/storage"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
+	"github.com/Builder-Lawyers/builder-backend/pkg/env"
 	"github.com/google/uuid"
 )
 
 type UploadFile struct {
 	uowFactory *dbs.UOWFactory
 	storage    *storage.Storage
-	path       string
+	cfg        UploadConfig
 }
 
-func NewUploadFile(factory *dbs.UOWFactory, storage *storage.Storage, path string) *UploadFile {
-	return &UploadFile{uowFactory: factory, storage: storage, path: path}
+func NewUploadFile(factory *dbs.UOWFactory, storage *storage.Storage, cfg UploadConfig) *UploadFile {
+	return &UploadFile{uowFactory: factory, storage: storage, cfg: cfg}
+}
+
+type UploadConfig struct {
+	path string
+}
+
+func NewUploadConfig() UploadConfig {
+	return UploadConfig{
+		path: env.GetEnv("UPLOAD_PREFIX", "images/"),
+	}
 }
 
 func (c *UploadFile) Execute(ctx context.Context, fileHeader *multipart.FileHeader) (*dto.FileUploadedResponse, error) {
@@ -30,7 +41,7 @@ func (c *UploadFile) Execute(ctx context.Context, fileHeader *multipart.FileHead
 
 	fileID := uuid.New()
 	contentType := fileHeader.Header.Get("Content-Type")
-	fileURL, err := c.storage.UploadFile(ctx, fmt.Sprintf("%s%s", c.path, fileID.String()), &contentType, f)
+	fileURL, err := c.storage.UploadFile(ctx, fmt.Sprintf("%s%s", c.cfg.path, fileID.String()), &contentType, f)
 	if err != nil {
 		return nil, fmt.Errorf("err uploading to s3, %v", err)
 	}
@@ -40,15 +51,11 @@ func (c *UploadFile) Execute(ctx context.Context, fileHeader *multipart.FileHead
 	if err != nil {
 		return nil, err
 	}
+	defer uow.Finalize(&err)
 
 	_, err = tx.Exec(ctx, "INSERT INTO builder.files(id) VALUES($1)", fileID)
 	if err != nil {
 		return nil, fmt.Errorf("err inserting file to db %v", err)
-	}
-
-	err = uow.Commit()
-	if err != nil {
-		return nil, err
 	}
 
 	// TODO: define what is needed to save, add files table

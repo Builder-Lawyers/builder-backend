@@ -10,13 +10,11 @@ import (
 	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application"
-	"github.com/Builder-Lawyers/builder-backend/internal/application/commands"
-	auth2 "github.com/Builder-Lawyers/builder-backend/internal/application/commands/auth"
-	"github.com/Builder-Lawyers/builder-backend/internal/application/query"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/commands/file"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/commands/payment"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/build"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/certs"
-	ai "github.com/Builder-Lawyers/builder-backend/internal/infra/client/openai"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/mail"
@@ -25,6 +23,7 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/presentation/scheduler"
 	"github.com/Builder-Lawyers/builder-backend/pkg/db"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/golang-jwt/jwt/v4"
@@ -51,7 +50,8 @@ func Init() {
 	domainContact := dns.NewDomainContact()
 	mailConfig := mail.NewMailConfig()
 	oidcConfig := auth.NewOIDCConfig()
-	paymentConfig := commands.NewPaymentConfig()
+	paymentConfig := payment.NewPaymentConfig()
+	uploadConfig := file.NewUploadConfig()
 	outboxConfig := scheduler.NewOutboxConfig()
 	// solving problem of slight clock mismatch for jwt verifications
 	now := time.Now()
@@ -68,25 +68,16 @@ func Init() {
 	s3 := storage.NewStorage(cfg)
 	dnsProvisioner := dns.NewDNSProvisioner(cfg, domainContact)
 	acmCerts := certs.NewACMCertificates(cfg)
+	cognito := cognitoidentityprovider.NewFromConfig(cfg, func(o *cognitoidentityprovider.Options) {
+		o.Region = "us-east-1"
+	})
 
 	handlers := &application.Handlers{
-		CreateSite:        commands.NewCreateSite(uowFactory),
-		UpdateSite:        commands.NewUpdateSite(uowFactory),
-		CreateTemplate:    commands.NewCreateTemplate(uowFactory),
-		EnrichContent:     commands.NewEnrichContent(ai.NewOpenAIClient(ai.NewOpenAIConfig())),
-		UploadFile:        commands.NewUploadFile(uowFactory, s3, "images/"),
-		GetSite:           query.NewGetSite(provisionConfig, uowFactory, dnsProvisioner),
-		GetTemplate:       query.NewGetTemplate(uowFactory, s3, provisionConfig),
-		ProvisionSite:     commands.NewProvisionSite(provisionConfig, uowFactory, s3, templateBuild, dnsProvisioner, acmCerts),
-		ProvisionCDN:      commands.NewProvisionCDN(provisionConfig, uowFactory, dnsProvisioner),
-		FinalizeProvision: commands.NewFinalizeProvision(provisionConfig, uowFactory, dnsProvisioner),
-		DeactivateSite:    commands.NewDeactivateSite(uowFactory, dnsProvisioner),
-		Auth:              auth2.NewAuth(uowFactory, oidcConfig, cfg),
-		CheckDomain:       query.NewCheckDomain(dnsProvisioner),
-		SendMail:          commands.NewSendMail(mailServer, uowFactory),
-		Payment:           commands.NewPayment(uowFactory, paymentConfig),
+		Commands:   application.NewCommands(uowFactory, s3, uploadConfig, paymentConfig, oidcConfig, cognito),
+		Queries:    application.NewQueries(uowFactory, s3, provisionConfig, dnsProvisioner),
+		Processors: application.NewProcessors(uowFactory, s3, templateBuild, acmCerts, provisionConfig, dnsProvisioner, mailServer),
 	}
-	handler := rest.NewServer(handlers)
+	handler := rest.NewServer(handlers.Queries, handlers.Commands)
 	app := fiber.New(fiber.Config{
 		IdleTimeout: 5 * time.Second,
 	})
@@ -99,7 +90,7 @@ func Init() {
 	app.Static("/docs", "./api")
 	rest.RegisterHandlers(app, handler)
 
-	outboxPoller := scheduler.NewOutboxPoller(handlers, uowFactory, outboxConfig)
+	outboxPoller := scheduler.NewOutboxPoller(handlers.Processors, uowFactory, outboxConfig)
 	go outboxPoller.Start()
 
 	go func() {

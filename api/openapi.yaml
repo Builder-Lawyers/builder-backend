@@ -195,7 +195,7 @@ paths:
           required: true
           schema:
             type: integer
-            format: uint8
+            format: uint16
       responses:
         '200':
           description: Template Info
@@ -203,6 +203,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TemplateInfo'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /template/list:
+    post:
+      summary: Gets template list with pagination
+      description: Returns template list with info such as name, description, pages.json (url to s3)
+      operationId: listTemplates
+      tags:
+        - Templates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListTemplatePaginator'
+      responses:
+        '200':
+          description: Template Info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTemplateInfo'
         '400':
           $ref: '#/components/responses/BadRequestError'
         '500':
@@ -557,9 +583,44 @@ components:
         - healthCheckStatus
         - createdAt
 
+    ListTemplatePaginator:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        size:
+          type: integer
+          example: 4
+
+    ListTemplateInfo:
+      type: object
+      properties:
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateInfo'
+        page:
+          type: integer
+          example: 1
+        total:
+          type: integer
+          example: 16
+        hasNext:
+          type: boolean
+          example: true
+      required:
+        - elements
+        - page
+        - total
+        - hasNext
+
     TemplateInfo:
       type: object
       properties:
+        id:
+          type: integer
+          example: 1
         templateName:
           type: string
           format: string
@@ -568,6 +629,7 @@ components:
           format: string
           description: pages.json file
       required:
+        - id
         - templateName
         - structure
 
@@ -723,6 +785,12 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     InternalServerError:
       description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: Not Found error
       content:
         application/json:
           schema:

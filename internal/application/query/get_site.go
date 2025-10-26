@@ -17,14 +17,14 @@ import (
 )
 
 type GetSite struct {
-	cfg            *config.ProvisionConfig
+	cfg            config.ProvisionConfig
 	uowFactory     *dbs.UOWFactory
 	dnsProvisioner *dns.DNSProvisioner
 	client         http.Client
 }
 
 func NewGetSite(
-	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, dns *dns.DNSProvisioner,
+	cfg config.ProvisionConfig, factory *dbs.UOWFactory, dns *dns.DNSProvisioner,
 ) *GetSite {
 	return &GetSite{
 		cfg,

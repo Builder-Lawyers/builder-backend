@@ -1,4 +1,4 @@
-package commands
+package processors
 
 import (
 	"context"
@@ -29,7 +29,7 @@ import (
 )
 
 type ProvisionSite struct {
-	cfg            *config.ProvisionConfig
+	cfg            config.ProvisionConfig
 	uowFactory     *dbs.UOWFactory
 	storage        *storage.Storage
 	templateBuild  *build.TemplateBuild
@@ -38,7 +38,7 @@ type ProvisionSite struct {
 }
 
 func NewProvisionSite(
-	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, storage *storage.Storage,
+	cfg config.ProvisionConfig, factory *dbs.UOWFactory, storage *storage.Storage,
 	build *build.TemplateBuild, dns *dns.DNSProvisioner, certs *certs.ACMCertificates,
 ) *ProvisionSite {
 	return &ProvisionSite{

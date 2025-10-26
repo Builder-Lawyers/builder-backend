@@ -25,17 +25,15 @@ import (
 
 type Auth struct {
 	uowFactory *dbs.UOWFactory
-	cfg        *auth.OIDCConfig
+	cfg        auth.OIDCConfig
 	cognito    *cognitoidentityprovider.Client
 }
 
-func NewAuth(uowFactory *dbs.UOWFactory, oidcCfg *auth.OIDCConfig, cfg aws.Config) *Auth {
+func NewAuth(uowFactory *dbs.UOWFactory, oidcCfg auth.OIDCConfig, cognito *cognitoidentityprovider.Client) *Auth {
 	return &Auth{
 		uowFactory: uowFactory,
 		cfg:        oidcCfg,
-		cognito: cognitoidentityprovider.NewFromConfig(cfg, func(o *cognitoidentityprovider.Options) {
-			o.Region = "us-east-1"
-		}),
+		cognito:    cognito,
 	}
 }
 
@@ -75,6 +73,8 @@ func (c *Auth) CreateSession(ctx context.Context, req dto.CreateSession) (string
 	if err != nil {
 		return "", err
 	}
+	defer uow.Finalize(&err)
+
 	var userID uuid.UUID
 	err = tx.QueryRow(ctx, "SELECT id FROM builder.users WHERE email = $1",
 		claims["email"].(string),
@@ -109,21 +109,16 @@ func (c *Auth) CreateSession(ctx context.Context, req dto.CreateSession) (string
 		return "", fmt.Errorf("error creating a session, %v", err)
 	}
 
-	err = uow.Commit()
-	if err != nil {
-		return "", fmt.Errorf("error commiting tx, %v", err)
-	}
-
 	return session.ID.String(), nil
 }
 
 func (c *Auth) CreateConfirmationCode(ctx context.Context, req *dto.CreateConfirmation) error {
-
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
 		return err
 	}
+	defer uow.Finalize(&err)
 
 	code := uuid.New()
 	expiresAt := time.Now().Add(time.Minute * time.Duration(c.cfg.ConfirmationExpirationMins))
@@ -157,11 +152,6 @@ func (c *Auth) CreateConfirmationCode(ctx context.Context, req *dto.CreateConfir
 		return fmt.Errorf("error creating event, %v", err)
 	}
 
-	err = uow.Commit()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -171,6 +161,7 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 	if err != nil {
 		return nil, err
 	}
+	defer uow.Finalize(&err)
 
 	var userID uuid.UUID
 	var email string
@@ -189,7 +180,7 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 		Username:   aws.String(email), // TODO: or email?
 	}
 
-	_, err = c.cognito.AdminConfirmSignUp(context.Background(), input)
+	_, err = c.cognito.AdminConfirmSignUp(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to confirm user: %v", err)
 	}
@@ -200,11 +191,6 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 	}
 
 	// TODO: send registration success mail
-
-	err = uow.Commit()
-	if err != nil {
-		return nil, err
-	}
 
 	return &dto.VerifiedUser{
 		UserID: userID.String(),
@@ -250,6 +236,7 @@ func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto
 	if err != nil {
 		return nil, err
 	}
+	defer uow.Finalize(&err)
 
 	_, err = tx.Exec(ctx, "INSERT INTO builder.users(id, status, email, created_at)",
 		userID, consts.UserConfirmed, email, time.Now())
@@ -267,11 +254,6 @@ func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto
 	_, err = tx.Exec(ctx, "INSERT INTO builder.sessions(id, user_id, refresh_token, issued_at) VALUES ($1,$2,$3,$4)",
 		session.ID, session.UserID, session.RefreshToken, session.IssuedAt)
 
-	err = uow.Commit()
-	if err != nil {
-		return nil, err
-	}
-
 	return &dto.OauthTokenVerified{
 		UserID: userID.String(),
 	}, nil
@@ -288,6 +270,7 @@ func (c *Auth) GetIdentity(ctx context.Context, id uuid.UUID) (*auth.Identity, e
 	if err != nil {
 		return nil, err
 	}
+	defer uow.Finalize(&err)
 
 	// TODO: retrieve from cache
 	var identity auth.Identity

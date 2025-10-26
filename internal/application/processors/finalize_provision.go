@@ -1,4 +1,4 @@
-package commands
+package processors
 
 import (
 	"context"
@@ -18,13 +18,13 @@ import (
 )
 
 type FinalizeProvision struct {
-	cfg         *config.ProvisionConfig
+	cfg         config.ProvisionConfig
 	uowFactory  *dbs.UOWFactory
 	dnsProvider *dns.DNSProvisioner
 }
 
 func NewFinalizeProvision(
-	cfg *config.ProvisionConfig, factory *dbs.UOWFactory, dns *dns.DNSProvisioner,
+	cfg config.ProvisionConfig, factory *dbs.UOWFactory, dns *dns.DNSProvisioner,
 ) *FinalizeProvision {
 	return &FinalizeProvision{
 		cfg,
