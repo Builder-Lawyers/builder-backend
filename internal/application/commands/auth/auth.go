@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -137,11 +138,11 @@ func (c *Auth) CreateConfirmationCode(ctx context.Context, req *dto.CreateConfir
 
 	registrationConfirmData := mail.RegistrationConfirmData{
 		Year:        strconv.Itoa(time.Now().Year()),
-		RedirectURL: fmt.Sprintf("%v?code=%v", c.cfg.RedirectURL, code),
+		RedirectURL: fmt.Sprintf("%v/%v", c.cfg.RedirectURL, code),
 	}
 
 	sendMail := events.SendMail{
-		UserID:  req.UserID,
+		UserID:  req.UserID.String(),
 		Subject: registrationConfirmData.GetSubject(),
 		Data:    registrationConfirmData,
 	}
@@ -193,7 +194,7 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 	// TODO: send registration success mail
 
 	return &dto.VerifiedUser{
-		UserID: userID.String(),
+		UserID: userID,
 	}, nil
 }
 
@@ -255,14 +256,46 @@ func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto
 		session.ID, session.UserID, session.RefreshToken, session.IssuedAt)
 
 	return &dto.OauthTokenVerified{
-		UserID: userID.String(),
+		UserID: userID,
 	}, nil
+}
+
+func (c *Auth) GetSession(ctx context.Context, id uuid.UUID) (*dto.SessionInfo, error) {
+	uow := c.uowFactory.GetUoW()
+	tx, err := uow.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer uow.Finalize(&err)
+
+	// TODO: retrieve from cache
+	var session dto.SessionInfo
+	var siteID sql.NullInt64
+	err = tx.QueryRow(ctx,
+		"SELECT ss.user_id, u.email, s.id FROM builder.sessions ss "+
+			"JOIN builder.users u "+
+			"ON ss.user_id = u.id "+
+			"LEFT JOIN builder.sites s "+
+			"ON u.id = s.creator_id "+
+			"WHERE ss.id = $1 LIMIT 1", id,
+	).Scan(&session.UserID, &session.Email, &siteID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting session, %v", err)
+	}
+
+	if siteID.Valid {
+		session.UserSite = &dto.UserSite{
+			SiteID: uint64(siteID.Int64),
+		}
+	}
+
+	return &session, nil
 }
 
 func (c *Auth) GetIdentity(ctx context.Context, id uuid.UUID) (*auth.Identity, error) {
 	if c.cfg.Mode == "TEST" {
 		return &auth.Identity{
-			UserID: *c.cfg.TestUser,
+			UserID: c.cfg.TestUser,
 		}, nil
 	}
 	uow := c.uowFactory.GetUoW()

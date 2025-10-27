@@ -22,7 +22,9 @@ type OutboxStatus int
 
 const (
 	NotProcessed OutboxStatus = iota
+	Processing
 	Processed
+	InError
 )
 
 type ProvisionType string

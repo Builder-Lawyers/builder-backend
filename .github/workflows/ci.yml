@@ -15,6 +15,7 @@ jobs:
       COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
       COGNITO_ISSUER: ${{ secrets.COGNITO_ISSUER }}
       COGNITO_POOL_ID: ${{ secrets.COGNITO_POOL_ID }}
+      UPLOAD_PREFIX: ${{ vars.UPLOAD_PREFIX }}
     steps:
       - uses: actions/checkout@v4
 

@@ -35,7 +35,7 @@ func (c *UpdateSite) Execute(ctx context.Context, siteID uint64, req *dto.Update
 	}
 	defer uow.Finalize(&err)
 
-	err = tx.QueryRow(ctx, "SELECT creator_id, template_id, status, fields, subscription_id from builder.sites WHERE id = $1", siteID).Scan(
+	err = tx.QueryRow(ctx, "SELECT creator_id, template_id, status, fields from builder.sites WHERE id = $1", siteID).Scan(
 		&site.CreatorID,
 		&site.TemplateID,
 		&site.Status,

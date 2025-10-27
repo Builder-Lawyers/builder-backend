@@ -183,6 +183,20 @@ func (s *Server) GetSite(c *fiber.Ctx, id uint64) error {
 	return c.Status(fiber.StatusOK).JSON(resp)
 }
 
+func (s *Server) GetSession(c *fiber.Ctx) error {
+	sessionID, err := getSessionID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	identity, err := s.commands.Auth.GetSession(c.UserContext(), sessionID)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(&identity)
+}
+
 func (s *Server) CreateSession(c *fiber.Ctx) error {
 	var req dto.CreateSession
 	if err := c.BodyParser(&req); err != nil {
@@ -326,8 +340,4 @@ func getToken(c *fiber.Ctx) string {
 		return ""
 	}
 	return parts[1]
-}
-
-func getIdentity(c *fiber.Ctx) (*auth.Identity, error) {
-	return auth.IdentityProvider{}.GetIdentity(getToken(c))
 }

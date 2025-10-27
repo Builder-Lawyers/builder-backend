@@ -30,8 +30,8 @@ const (
 
 // CreateConfirmation defines model for CreateConfirmation.
 type CreateConfirmation struct {
-	Email  string `json:"email"`
-	UserID string `json:"userID"`
+	Email  string             `json:"email"`
+	UserID openapi_types.UUID `json:"userID"`
 }
 
 // CreatePaymentRequest defines model for CreatePaymentRequest.
@@ -102,8 +102,8 @@ type ErrorResponse struct {
 
 // FileUploadedResponse defines model for FileUploadedResponse.
 type FileUploadedResponse struct {
-	FileID  string `json:"fileID"`
-	FileURL string `json:"fileURL"`
+	FileID  openapi_types.UUID `json:"fileID"`
+	FileURL string             `json:"fileURL"`
 }
 
 // GetSiteResponse defines model for GetSiteResponse.
@@ -131,8 +131,8 @@ type ListTemplatePaginator struct {
 
 // OauthTokenVerified defines model for OauthTokenVerified.
 type OauthTokenVerified struct {
-	Email  string `json:"email"`
-	UserID string `json:"userID"`
+	Email  string             `json:"email"`
+	UserID openapi_types.UUID `json:"userID"`
 }
 
 // PaymentStatusResponse defines model for PaymentStatusResponse.
@@ -141,6 +141,13 @@ type PaymentStatusResponse struct {
 	PaymentIntentStatus string `json:"paymentIntentStatus"`
 	PaymentStatus       string `json:"paymentStatus"`
 	Status              string `json:"status"`
+}
+
+// SessionInfo defines model for SessionInfo.
+type SessionInfo struct {
+	Email    string             `json:"email"`
+	UserID   openapi_types.UUID `json:"userID"`
+	UserSite *UserSite          `json:"userSite,omitempty"`
 }
 
 // StripeWebhookRequest defines model for StripeWebhookRequest.
@@ -175,9 +182,14 @@ type UpdateSiteResponse struct {
 	SiteID uint64 `json:"siteID"`
 }
 
+// UserSite defines model for UserSite.
+type UserSite struct {
+	SiteID uint64 `json:"siteID"`
+}
+
 // VerifiedUser defines model for VerifiedUser.
 type VerifiedUser struct {
-	UserID string `json:"userID"`
+	UserID openapi_types.UUID `json:"userID"`
 }
 
 // VerifyCode defines model for VerifyCode.

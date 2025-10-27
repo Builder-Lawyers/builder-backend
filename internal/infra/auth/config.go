@@ -16,7 +16,7 @@ type OIDCConfig struct {
 	IssuerURL                  string
 	GoogleIssuerURL            string
 	Mode                       string
-	TestUser                   *uuid.UUID
+	TestUser                   uuid.UUID
 }
 
 func NewOIDCConfig() OIDCConfig {
@@ -42,6 +42,6 @@ func NewOIDCConfig() OIDCConfig {
 		IssuerURL:                  os.Getenv("COGNITO_ISSUER"),
 		GoogleIssuerURL:            os.Getenv("GOOGLE_ISSUER"),
 		Mode:                       os.Getenv("MODE"),
-		TestUser:                   &testUserID,
+		TestUser:                   testUserID,
 	}
 }

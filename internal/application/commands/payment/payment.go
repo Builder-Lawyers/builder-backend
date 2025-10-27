@@ -63,7 +63,7 @@ func (c *Payment) CreatePayment(ctx context.Context, req *dto.CreatePaymentReque
 	}
 	// TODO: improve uow api to be able to only rollback at the end of a function, not commit
 	defer uow.Finalize(&err)
-	var existingSubID string
+	var existingSubID sql.NullString
 	err = tx.QueryRow(ctx, "SELECT subscription_id FROM builder.sites WHERE id = $1", req.SiteID).Scan(&existingSubID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -71,6 +71,10 @@ func (c *Payment) CreatePayment(ctx context.Context, req *dto.CreatePaymentReque
 		} else {
 			return "", fmt.Errorf("error retrieving subscription, %v", err)
 		}
+	}
+
+	if existingSubID.Valid {
+		return "", fmt.Errorf("subscription is already created for this site")
 	}
 
 	var stripePlanID string
@@ -95,12 +99,12 @@ func (c *Payment) CreatePayment(ctx context.Context, req *dto.CreatePaymentReque
 			return "", fmt.Errorf("error creating sub, %v", err)
 		}
 
-		return s.ID, nil
-	}
+		_, err = tx.Exec(ctx, "UPDATE builder.sites SET subscription_id = $1 WHERE id = $2", s.ID, req.SiteID)
+		if err != nil {
+			return "", fmt.Errorf("err updating site subscription, %v", err)
+		}
 
-	err = uow.Commit()
-	if err != nil {
-		return "", err
+		return s.ID, nil
 	}
 
 	// TODO: if it is a simple plan, create a subscription with free trial and no payment method details requested

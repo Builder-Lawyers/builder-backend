@@ -2,6 +2,7 @@ package processors
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -75,17 +76,22 @@ func (c *FinalizeProvision) Handle(ctx context.Context, event events.FinalizePro
 	}
 
 	var userID string
-	mailData := mail.SiteCreatedData{
-		SiteURL: event.Domain,
-		Year:    strconv.Itoa(time.Now().Year()),
-	}
+	var firstName sql.NullString
+	var secondName sql.NullString
 	err = tx.QueryRow(ctx, "SELECT s.creator_id, u.first_name, u.second_name "+
 		"FROM builder.sites s "+
 		"LEFT JOIN builder.users u ON s.creator_id = u.id "+
 		"WHERE s.id = $1", event.SiteID,
-	).Scan(&userID, &mailData.CustomerFirstName, &mailData.CustomerSecondName)
+	).Scan(&userID, &firstName, &secondName)
 	if err != nil {
 		return uow, fmt.Errorf("error getting mail data, %v", err)
+	}
+
+	mailData := mail.SiteCreatedData{
+		CustomerFirstName:  firstName.String,
+		CustomerSecondName: secondName.String,
+		SiteURL:            event.Domain,
+		Year:               strconv.Itoa(time.Now().Year()),
 	}
 
 	sendMailEvent := events.SendMail{

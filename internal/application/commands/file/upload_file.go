@@ -62,7 +62,7 @@ func (c *UploadFile) Execute(ctx context.Context, fileHeader *multipart.FileHead
 	// TODO: if this can be used by not registered users, set some limit to prevent ddos
 
 	return &dto.FileUploadedResponse{
-		FileID:  fileID.String(),
+		FileID:  fileID,
 		FileURL: fileURL,
 	}, nil
 }

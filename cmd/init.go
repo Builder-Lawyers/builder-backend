@@ -83,8 +83,9 @@ func Init() {
 	})
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "http://localhost:3000",
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,Cookie",
+		ExposeHeaders:    "Set-Cookie,Authorization",
 		AllowCredentials: true,
 	}))
 	app.Static("/docs", "./api")

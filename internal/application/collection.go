@@ -81,7 +81,7 @@ func NewProcessors(uowFactory *db.UOWFactory, storage *storage.Storage, build *b
 	certs *certs.ACMCertificates, provisionConfig config.ProvisionConfig, dnsProvisioner *dns.DNSProvisioner, mail *mail.MailServer,
 ) *Processors {
 	return &Processors{
-		DeactivateSite:    processors.NewDeactivateSite(uowFactory, dnsProvisioner),
+		DeactivateSite:    processors.NewDeactivateSite(uowFactory, dnsProvisioner, provisionConfig),
 		ProvisionSite:     processors.NewProvisionSite(provisionConfig, uowFactory, storage, build, dnsProvisioner, certs),
 		ProvisionCDN:      processors.NewProvisionCDN(provisionConfig, uowFactory, dnsProvisioner),
 		FinalizeProvision: processors.NewFinalizeProvision(provisionConfig, uowFactory, dnsProvisioner),

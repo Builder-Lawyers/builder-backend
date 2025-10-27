@@ -71,7 +71,7 @@ func (c *GetTemplate) QueryList(ctx context.Context, req *dto.ListTemplatePagina
 		ctx,
 		`SELECT id, name 
 		 FROM builder.templates 
-		 ORDER BY created_at DESC 
+		 ORDER BY id ASC 
 		 LIMIT $1 OFFSET $2`,
 		size, offset,
 	)
@@ -86,6 +86,7 @@ func (c *GetTemplate) QueryList(ctx context.Context, req *dto.ListTemplatePagina
 		if err := rows.Scan(&t.Id, &t.TemplateName); err != nil {
 			return nil, err
 		}
+		t.Structure = c.getStructureFilePath(t.TemplateName)
 		list = append(list, t)
 	}
 	if err := rows.Err(); err != nil {
@@ -106,7 +107,7 @@ func (c *GetTemplate) QueryList(ctx context.Context, req *dto.ListTemplatePagina
 }
 
 func (c *GetTemplate) getStructureFilePath(templateName string) string {
-	templatePath := filepath.Join(c.cfg.TemplatesFolder, templateName)
+	templatePath := filepath.Join(c.cfg.BucketPath, "templates", templateName)
 	structureFile := filepath.Join(templatePath+c.cfg.PathToFile, c.cfg.Filename)
-	return structureFile
+	return fmt.Sprintf("%v/%v", c.cfg.S3ObjectURL+structureFile)
 }

@@ -261,8 +261,25 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   /auth/session:
+    get:
+      summary: Gets session info from cookie
+      description: Gets session info from cookie
+      operationId: getSession
+      tags:
+        - Auth
+      responses:
+        '200':
+          description: Session info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionInfo'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
-      summary: Gets a session from access token
+      summary: Creates a session from access token
       description: Returns a session ID cookie
       operationId: createSession
       tags:
@@ -554,6 +571,7 @@ components:
       properties:
         fileID:
           type: string
+          format: uuid
           example: 021804b8-5071-7049-7034-8853ffd88039
         fileURL:
           type: string
@@ -642,6 +660,31 @@ components:
       required:
         - available
 
+    SessionInfo:
+      type: object
+      properties:
+        userID:
+          type: string
+          format: uuid
+          example: 021804b8-5071-7049-7034-8853ffd88039
+        email:
+          type: string
+          example: example@gmail.com
+        userSite:
+          $ref: '#/components/schemas/UserSite'
+      required:
+        - userID
+        - email
+
+    UserSite:
+      type: object
+      properties:
+        siteID:
+          type: integer
+          format: uint64
+      required:
+        - siteID
+
     CreateSession:
       type: object
       properties:
@@ -664,6 +707,7 @@ components:
       properties:
         userID:
           type: string
+          format: uuid
           example: 021804b8-5071-7049-7034-8853ffd88039
         email:
           type: string
@@ -695,6 +739,7 @@ components:
       properties:
         userID:
           type: string
+          format: uuid
           example: 021804b8-5071-7049-7034-8853ffd88039
         email:
           type: string
@@ -708,6 +753,7 @@ components:
       properties:
         userID:
           type: string
+          format: uuid
           example: 021804b8-5071-7049-7034-8853ffd88039
       required:
         - userID

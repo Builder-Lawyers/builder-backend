@@ -21,7 +21,10 @@ type ServerInterface interface {
 	// Verifies provided oauth2 id_token
 	// (POST /auth/oauth/verify)
 	VerifyOauthToken(c *fiber.Ctx) error
-	// Gets a session from access token
+	// Gets session info from cookie
+	// (GET /auth/session)
+	GetSession(c *fiber.Ctx) error
+	// Creates a session from access token
 	// (POST /auth/session)
 	CreateSession(c *fiber.Ctx) error
 	// Verifies provided confirmation code
@@ -88,6 +91,12 @@ func (siw *ServerInterfaceWrapper) CreateConfirmation(c *fiber.Ctx) error {
 func (siw *ServerInterfaceWrapper) VerifyOauthToken(c *fiber.Ctx) error {
 
 	return siw.Handler.VerifyOauthToken(c)
+}
+
+// GetSession operation middleware
+func (siw *ServerInterfaceWrapper) GetSession(c *fiber.Ctx) error {
+
+	return siw.Handler.GetSession(c)
 }
 
 // CreateSession operation middleware
@@ -260,6 +269,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Post(options.BaseURL+"/auth/confirmation", wrapper.CreateConfirmation)
 
 	router.Post(options.BaseURL+"/auth/oauth/verify", wrapper.VerifyOauthToken)
+
+	router.Get(options.BaseURL+"/auth/session", wrapper.GetSession)
 
 	router.Post(options.BaseURL+"/auth/session", wrapper.CreateSession)
 

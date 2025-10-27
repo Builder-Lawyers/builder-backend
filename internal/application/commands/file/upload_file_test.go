@@ -21,7 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -56,7 +55,7 @@ func Test_Upload_File_When_Called_With_Valid_File_Then_Inserted_In_DB_And_Upload
 	require.NotEmpty(t, resp.FileURL)
 
 	var createdFileID string
-	err = testinfra.Pool.QueryRow(ctx, "SELECT id FROM builder.files WHERE id = $1", uuid.MustParse(resp.FileID)).Scan(&createdFileID)
+	err = testinfra.Pool.QueryRow(ctx, "SELECT id FROM builder.files WHERE id = $1", resp.FileID).Scan(&createdFileID)
 	require.NoError(t, err)
 
 	require.Equal(t, resp.FileID, createdFileID)

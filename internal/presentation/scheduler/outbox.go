@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
@@ -96,7 +97,6 @@ func (o *OutboxPoller) pollTable(ctx context.Context) {
 		slog.Error("error in poller", "err", err)
 		return
 	}
-	uow.Finalize(&err)
 
 	query := "SELECT * FROM builder.outbox WHERE status = 0 ORDER BY created_at FOR NO KEY UPDATE LIMIT $1"
 	rows, err := tx.Query(ctx, query, o.cfg.limit)
@@ -106,22 +106,33 @@ func (o *OutboxPoller) pollTable(ctx context.Context) {
 	}
 
 	defer rows.Close()
-	var events []db.Outbox
+	var eventsToProcess []db.Outbox
+	var eventIDs []int64
 	for rows.Next() {
 		var event db.Outbox
 		if err = rows.Scan(&event.ID, &event.Event, &event.Status, &event.Payload, &event.CreatedAt); err != nil {
 			slog.Error("error in poller", "err", err)
 			continue
 		}
-		events = append(events, event)
+		eventIDs = append(eventIDs, int64(event.ID))
+		eventsToProcess = append(eventsToProcess, event)
 	}
 
 	if err = rows.Err(); err != nil {
 		slog.Error("error reading result sets, ", "err", err)
 	}
 
+	_, err = tx.Exec(ctx, "UPDATE builder.outbox SET status = $1 WHERE id = ANY($2)", consts.Processing, eventIDs)
+	if err != nil {
+		slog.Error("error setting events status to processing", "err", err)
+	}
+
+	if err := uow.Commit(); err != nil {
+		slog.Error("err committing", "err", err)
+	}
+
 	var wg sync.WaitGroup
-	for _, event := range events {
+	for _, event := range eventsToProcess {
 		wg.Add(1)
 		go func(ev db.Outbox) {
 			defer wg.Done()
@@ -132,7 +143,7 @@ func (o *OutboxPoller) pollTable(ctx context.Context) {
 	}
 
 	wg.Wait()
-	slog.Info("Finished poller thread elaboration")
+	slog.Info("Finished poller thread processing")
 }
 
 func (o *OutboxPoller) handleEvent(ctx context.Context, outbox db.Outbox) error {
@@ -140,7 +151,7 @@ func (o *OutboxPoller) handleEvent(ctx context.Context, outbox db.Outbox) error 
 		uow    interfaces.UoW
 		tx     pgx.Tx
 		err    error
-		status = 1
+		status = consts.Processed
 	)
 
 	slog.Info("Handling event", "event", outbox.Event, "id", outbox.ID)
@@ -150,14 +161,14 @@ func (o *OutboxPoller) handleEvent(ctx context.Context, outbox db.Outbox) error 
 		event := db.MapOutboxModelToSiteAwaitingProvisionEvent(outbox)
 		uow, err = o.processors.ProvisionSite.Handle(ctx, event)
 		if err != nil {
-			status = 2
+			status = consts.InError
 		}
 		break
 	case events.ProvisionCDN{}.GetType():
 		event := db.MapOutboxModelToProvisionCDN(outbox)
 		uow, err = o.processors.ProvisionCDN.Handle(ctx, event)
 		if err != nil {
-			status = 2
+			status = consts.InError
 		}
 		break
 	case events.FinalizeProvision{}.GetType():
@@ -166,23 +177,23 @@ func (o *OutboxPoller) handleEvent(ctx context.Context, outbox db.Outbox) error 
 		if err != nil {
 			if strings.Contains(err.Error(), "timed out waiting for distribution to deploy") {
 				slog.Warn("Distribution still deploying, will retry later")
-				return nil
+				status = consts.NotProcessed
 			}
-			status = 2
+			status = consts.InError
 		}
 		break
 	case events.SendMail{}.GetType():
 		event := db.MapOutboxModelToSendMail(outbox)
 		uow, err = o.processors.SendMail.Handle(ctx, event)
 		if err != nil {
-			status = 2
+			status = consts.InError
 		}
 		break
 	case events.DeactivateSite{}.GetType():
 		event := db.MapOutboxModelToDeactivateSite(outbox)
 		uow, err = o.processors.DeactivateSite.Handle(ctx, event)
 		if err != nil {
-			status = 2
+			status = consts.InError
 		}
 		break
 	}
@@ -193,7 +204,7 @@ func (o *OutboxPoller) handleEvent(ctx context.Context, outbox db.Outbox) error 
 
 	if uow == nil {
 		var errTx error
-		// open new transaction if there was no in event handler
+		// open new transaction if there was none in event handler
 		uow = o.uowFactory.GetUoW()
 		tx, errTx = uow.Begin()
 		if errTx != nil {
@@ -215,6 +226,7 @@ func (o *OutboxPoller) handleEvent(ctx context.Context, outbox db.Outbox) error 
 		return err
 	}
 
+	slog.Info("processed event", "id", outbox.ID)
 	return nil
 }
 

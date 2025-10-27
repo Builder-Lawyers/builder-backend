@@ -139,13 +139,21 @@ func (d *DNSProvisioner) WaitAndGetDistribution(ctx context.Context, distributio
 	return "", fmt.Errorf("timed out waiting for distribution to deploy")
 }
 
-func (d *DNSProvisioner) DisableDistribution(ctx context.Context, distributionID string) error {
-
-	_, err := d.cfClient.UpdateDistribution(ctx, &cloudfront.UpdateDistributionInput{
+func (d *DNSProvisioner) DisableDistribution(ctx context.Context, distributionID, siteID, s3Domain string) error {
+	cfg, err := d.cfClient.GetDistributionConfig(ctx, &cloudfront.GetDistributionConfigInput{
 		Id: &distributionID,
-		DistributionConfig: &types.DistributionConfig{
-			Enabled: aws.Bool(false),
-		},
+	})
+	if err != nil {
+		return fmt.Errorf("err getting actual distribution cfg, %v", err)
+	}
+
+	// change config
+	cfg.DistributionConfig.Enabled = aws.Bool(false)
+
+	_, err = d.cfClient.UpdateDistribution(ctx, &cloudfront.UpdateDistributionInput{
+		Id:                 &distributionID,
+		IfMatch:            cfg.ETag,
+		DistributionConfig: cfg.DistributionConfig,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to disable distribution: %w", err)
@@ -265,7 +273,8 @@ func (d *DNSProvisioner) DeleteSubdomain(ctx context.Context, baseDomain, domain
 		hostedZoneID = parts[1]
 	}
 	fmt.Println(hostedZoneID)
-
+	fullDomain := fmt.Sprintf("%v.%v", domain, baseDomain)
+	fmt.Printf("deleting hosted zone record %v\n", fullDomain)
 	input := &route53.ChangeResourceRecordSetsInput{
 		HostedZoneId: aws.String(hostedZoneID),
 		ChangeBatch: &rTypes.ChangeBatch{
@@ -273,7 +282,7 @@ func (d *DNSProvisioner) DeleteSubdomain(ctx context.Context, baseDomain, domain
 				{
 					Action: rTypes.ChangeActionDelete,
 					ResourceRecordSet: &rTypes.ResourceRecordSet{
-						Name: aws.String(domain),
+						Name: aws.String(fullDomain),
 						Type: rTypes.RRTypeA,
 						AliasTarget: &rTypes.AliasTarget{
 							DNSName:              aws.String(cfDomain),
