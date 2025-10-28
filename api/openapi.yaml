@@ -182,6 +182,25 @@ paths:
           $ref: '#/components/responses/BadRequestError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+    put:
+      summary: Update templates
+      description: Fetches new template sources and rebuilds them (if no templateName specified, fetches all)
+      operationId: updateTemplates
+      tags:
+        - Templates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTemplatesRequest'
+      responses:
+        '200':
+          description: Templates rebuilt successfully
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /template/{id}:
     get:
       summary: Gets template info
@@ -538,6 +557,13 @@ components:
         - name
         - fields
 
+    UpdateTemplatesRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: template's name
+
     CreateTemplateResponse:
       type: object
       properties:
@@ -645,11 +671,16 @@ components:
         structure:
           type: string
           format: string
-          description: pages.json file
+          description: url to pages.json file
+        styles:
+          type: string
+          format: string
+          description: url to css file
       required:
         - id
         - templateName
         - structure
+        - styles
 
     DomainAvailability:
       type: object

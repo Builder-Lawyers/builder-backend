@@ -2,12 +2,14 @@ package query
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/errs"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
@@ -35,7 +37,6 @@ func NewGetSite(
 }
 
 func (c *GetSite) Query(ctx context.Context, siteIDParam uint64, identity *auth.Identity) (*dto.GetSiteResponse, error) {
-	// TODO: check if user owns this site, etc...
 	siteID := strconv.FormatUint(siteIDParam, 10)
 	var site db.Site
 
@@ -52,6 +53,10 @@ func (c *GetSite) Query(ctx context.Context, siteIDParam uint64, identity *auth.
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if identity.UserID != site.CreatorID {
+		return nil, errs.PermissionsError{Err: fmt.Errorf("user requesting site info, is not site's creator")}
 	}
 
 	response := dto.GetSiteResponse{

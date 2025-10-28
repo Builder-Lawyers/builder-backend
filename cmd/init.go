@@ -19,11 +19,13 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/mail"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/storage"
+	"github.com/Builder-Lawyers/builder-backend/internal/presentation/queue"
 	"github.com/Builder-Lawyers/builder-backend/internal/presentation/rest"
 	"github.com/Builder-Lawyers/builder-backend/internal/presentation/scheduler"
 	"github.com/Builder-Lawyers/builder-backend/pkg/db"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/golang-jwt/jwt/v4"
@@ -42,8 +44,6 @@ func Init() {
 		log.Panicf("failed to connect to db: %v", err)
 	}
 	uowFactory := db.NewUoWFactory(pool)
-	// FE Build
-	templateBuild := build.NewTemplateBuild()
 
 	// Configs
 	provisionConfig := config.NewProvisionConfig()
@@ -53,6 +53,7 @@ func Init() {
 	paymentConfig := payment.NewPaymentConfig()
 	uploadConfig := file.NewUploadConfig()
 	outboxConfig := scheduler.NewOutboxConfig()
+	templateChangesConfig := queue.NewTemplateChangesConfig()
 	// solving problem of slight clock mismatch for jwt verifications
 	now := time.Now()
 	jwt.TimeFunc = func() time.Time {
@@ -71,9 +72,15 @@ func Init() {
 	cognito := cognitoidentityprovider.NewFromConfig(cfg, func(o *cognitoidentityprovider.Options) {
 		o.Region = "us-east-1"
 	})
+	sqsClient := sqs.NewFromConfig(cfg, func(o *sqs.Options) {
+		o.Region = templateChangesConfig.SqsRegion
+	})
+
+	// FE Build
+	templateBuild := build.NewTemplateBuild(s3, provisionConfig)
 
 	handlers := &application.Handlers{
-		Commands:   application.NewCommands(uowFactory, s3, uploadConfig, paymentConfig, oidcConfig, cognito),
+		Commands:   application.NewCommands(uowFactory, s3, uploadConfig, templateBuild, provisionConfig, paymentConfig, oidcConfig, cognito),
 		Queries:    application.NewQueries(uowFactory, s3, provisionConfig, dnsProvisioner),
 		Processors: application.NewProcessors(uowFactory, s3, templateBuild, acmCerts, provisionConfig, dnsProvisioner, mailServer),
 	}
@@ -94,6 +101,11 @@ func Init() {
 	outboxPoller := scheduler.NewOutboxPoller(handlers.Processors, uowFactory, outboxConfig)
 	go outboxPoller.Start()
 
+	templatesQueuePoller := queue.NewTemplateChangesPoller(sqsClient, templateChangesConfig, handlers.Commands.UpdateTemplate)
+	if templateChangesConfig.Enabled {
+		go templatesQueuePoller.Start()
+	}
+
 	go func() {
 		if err := app.Listen(":8080"); err != nil {
 			log.Panic(err)
@@ -107,6 +119,7 @@ func Init() {
 	fmt.Println("Gracefully shutting down...")
 	_ = app.Shutdown()
 	outboxPoller.Stop()
+	templatesQueuePoller.Stop()
 
 	fmt.Println("Running cleanup tasks...")
 

@@ -100,6 +100,20 @@ func (s *Server) CreateTemplate(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusNoContent).JSON(resp)
 }
 
+func (s *Server) UpdateTemplates(c *fiber.Ctx) error {
+	var req dto.UpdateTemplatesRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	err := s.commands.UpdateTemplate.Execute(c.UserContext(), &req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
 func (s *Server) EnrichContent(c *fiber.Ctx) error {
 	var req dto.EnrichContentRequest
 	if err := c.BodyParser(&req); err != nil {

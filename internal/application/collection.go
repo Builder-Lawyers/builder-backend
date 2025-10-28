@@ -36,6 +36,7 @@ type Commands struct {
 	UpdateSite     *site.UpdateSite
 	DeleteSite     *site.DeleteSite
 	CreateTemplate *template.CreateTemplate
+	UpdateTemplate *template.UpdateTemplate
 }
 
 type Queries struct {
@@ -53,7 +54,8 @@ type Processors struct {
 }
 
 func NewCommands(uowFactory *db.UOWFactory, storage *storage.Storage, uploadConfig file.UploadConfig,
-	paymentConfig payment.PaymentConfig, oidcConfig authCfg.OIDCConfig, cognito *cognitoidentityprovider.Client,
+	templateBuild *build.TemplateBuild, provisionConfig config.ProvisionConfig, paymentConfig payment.PaymentConfig,
+	oidcConfig authCfg.OIDCConfig, cognito *cognitoidentityprovider.Client,
 ) *Commands {
 	return &Commands{
 		EnrichContent:  ai.NewEnrichContent(aiCfg.NewOpenAIClient(aiCfg.NewOpenAIConfig())),
@@ -64,6 +66,7 @@ func NewCommands(uowFactory *db.UOWFactory, storage *storage.Storage, uploadConf
 		UpdateSite:     site.NewUpdateSite(uowFactory),
 		DeleteSite:     site.NewDeleteSite(uowFactory),
 		CreateTemplate: template.NewCreateTemplate(uowFactory),
+		UpdateTemplate: template.NewUpdateTemplate(uowFactory, storage, templateBuild, provisionConfig),
 	}
 }
 

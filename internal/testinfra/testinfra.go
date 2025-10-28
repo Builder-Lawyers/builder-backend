@@ -49,11 +49,26 @@ func SetupDB() *pgxpool.Pool {
 		log.Panicf("postgres endpoint: %v", err)
 	}
 	pgDSN := fmt.Sprintf("postgres://postgres:password@%s/testdb?sslmode=disable", pgHostPort)
-	time.Sleep(1 * time.Second)
 
 	pool, err := pgxpool.New(ctx, pgDSN)
 	if err != nil {
 		log.Panicf("pgxpool connect: %v", err)
+	}
+
+	ok := false
+	for i := 0; i < 20; i++ {
+		slog.Info("ping db", "try", i)
+		ctxPing, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+		err = pool.Ping(ctxPing)
+		cancel()
+		if err == nil {
+			ok = true
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if !ok {
+		log.Panic("db did not respond after 20 attempts")
 	}
 
 	_, err = pool.Exec(ctx, `

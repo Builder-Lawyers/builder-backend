@@ -115,7 +115,9 @@ func (s *Storage) GetFile(ctx context.Context, key string) ([]byte, error) {
 	return data, nil
 }
 
-func (s *Storage) DownloadFiles(ctx context.Context, keys []string, destination, pathAfter string) error {
+// destination - local path where to upload files
+// pathTo - relative path from root to template's folder
+func (s *Storage) DownloadFiles(ctx context.Context, keys []string, destination, pathTo string) error {
 	for _, key := range keys {
 		params := &s3.GetObjectInput{
 			Bucket: &s.bucket,
@@ -125,7 +127,7 @@ func (s *Storage) DownloadFiles(ctx context.Context, keys []string, destination,
 		if err != nil {
 			return fmt.Errorf("error downloading key %s: %w", key, err)
 		}
-		destKey := strings.TrimPrefix(key, pathAfter)
+		destKey := strings.TrimPrefix(key, pathTo)
 		//slog.Info("got object from s3, uploading to local",
 		//	"key", key,
 		//	"destination", filepath.Join(destination, destKey),

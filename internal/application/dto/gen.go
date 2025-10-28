@@ -157,8 +157,11 @@ type StripeWebhookRequest map[string]interface{}
 type TemplateInfo struct {
 	Id int `json:"id"`
 
-	// Structure pages.json file
-	Structure    string `json:"structure"`
+	// Structure url to pages.json file
+	Structure string `json:"structure"`
+
+	// Styles url to css file
+	Styles       string `json:"styles"`
 	TemplateName string `json:"templateName"`
 }
 
@@ -180,6 +183,12 @@ type UpdateSiteRequestNewStatus string
 // UpdateSiteResponse defines model for UpdateSiteResponse.
 type UpdateSiteResponse struct {
 	SiteID uint64 `json:"siteID"`
+}
+
+// UpdateTemplatesRequest defines model for UpdateTemplatesRequest.
+type UpdateTemplatesRequest struct {
+	// Name template's name
+	Name *string `json:"name,omitempty"`
 }
 
 // UserSite defines model for UserSite.
@@ -254,6 +263,9 @@ type UpdateSiteJSONRequestBody = UpdateSiteRequest
 
 // CreateTemplateJSONRequestBody defines body for CreateTemplate for application/json ContentType.
 type CreateTemplateJSONRequestBody = CreateTemplateRequest
+
+// UpdateTemplatesJSONRequestBody defines body for UpdateTemplates for application/json ContentType.
+type UpdateTemplatesJSONRequestBody = UpdateTemplatesRequest
 
 // ListTemplatesJSONRequestBody defines body for ListTemplates for application/json ContentType.
 type ListTemplatesJSONRequestBody = ListTemplatePaginator

@@ -3,14 +3,11 @@ package processors
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
@@ -58,7 +55,7 @@ func NewProvisionSite(
 // upload dist folder to s3
 func (c *ProvisionSite) Handle(ctx context.Context, event events.SiteAwaitingProvision) (shared.UoW, error) {
 	siteID := strconv.FormatUint(event.SiteID, 10)
-	err := c.downloadTemplate(ctx, event.TemplateName)
+	err := c.templateBuild.DownloadTemplate(ctx, event.TemplateName)
 	if err != nil {
 		return nil, err
 	}
@@ -78,13 +75,13 @@ func (c *ProvisionSite) Handle(ctx context.Context, event events.SiteAwaitingPro
 	}
 
 	slog.Info("Building")
-	buildPath, err := c.templateBuild.RunFrontendBuild(ctx, templatePath)
+	buildPath, err := c.templateBuild.RunSiteBuild(ctx, templatePath)
 	if err != nil {
 		return nil, err
 	}
 	cleanBuild(customizeJsonPath)
 
-	if err = c.uploadFiles(ctx, "sites/"+siteID, event.TemplateName, buildPath); err != nil {
+	if err = c.templateBuild.UploadFiles(ctx, "sites/"+siteID, event.TemplateName, buildPath); err != nil {
 		return nil, err
 	}
 
@@ -179,136 +176,6 @@ func (c *ProvisionSite) Handle(ctx context.Context, event events.SiteAwaitingPro
 	return uow, nil
 }
 
-// Uploads file from a filesystem path to a s3 prefix
-func (c *ProvisionSite) uploadFiles(ctx context.Context, siteID, templateName, dir string) error {
-	files := readFilesFromDir(dir)
-	for _, f := range files {
-		file, err := os.Open(f)
-		// gets a substring after dist/
-		normalized := filepath.ToSlash(f)
-		parts := strings.SplitN(normalized, templateName+"/dist", 2)
-		//parts := strings.SplitN(normalized, "template/"+templateName, 2)
-		if err != nil {
-			return fmt.Errorf("malformed filepath, %s: %v", f, err)
-		}
-		_, err = c.storage.UploadFile(ctx, siteID+parts[1], nil, file)
-		if err != nil {
-			return fmt.Errorf("can't put object %v", err)
-		}
-		if err = file.Close(); err != nil {
-			return fmt.Errorf("failed to close file %s: %v", f, err)
-		}
-		slog.Info("Uploaded file", "fileUpload", f)
-	}
-	return nil
-}
-
-func (c *ProvisionSite) downloadTemplate(ctx context.Context, templateName string) error {
-	// can it download templates from s3?
-	targetTemplate := filepath.Join(c.cfg.TemplatesFolder, templateName)
-	exists, err := dirExists(targetTemplate)
-	if err != nil {
-		return err
-	}
-	if exists {
-		dir, err := os.ReadDir(targetTemplate)
-		if err != nil {
-			return err
-		}
-		if len(dir) > 0 {
-			return nil
-		}
-	}
-	slog.Warn("Folder with templates doesn't exist, creating now")
-	err = os.MkdirAll(filepath.Join(c.cfg.TemplatesFolder, templateName), fs.ModeDir)
-	if err != nil {
-		slog.Error("Failed to create dirs for templates", "template", err)
-		return err
-	}
-	slog.Info("Created folders for templates")
-	err = c.downloadMissingRootFiles(ctx, c.cfg.BuildFolder, c.cfg.BucketPath)
-	if err != nil {
-		return err
-	}
-	bucketPath := fmt.Sprintf("%v%v/%v", c.cfg.BucketPath, "templates", templateName)
-	err = c.downloadMissingTemplateFiles(ctx, targetTemplate, bucketPath)
-	if err != nil {
-		return err
-	}
-	//dir, err := os.ReadDir(c.cfg.BuildFolder)
-	//if err != nil {
-	//	return err
-	//}
-	//if len(dir) == 0 {
-	//	slog.Info("template's directory is empty, downloading sources")
-	//	files := c.Storage.ListFiles(1, templateName)
-	//	err = c.Storage.DownloadFiles(files, c.cfg.BuildFolder)
-	//	if err != nil {
-	//		slog.Error("error downloading template's sources %v", "template", err)
-	//	}
-	//}
-	return nil
-}
-
-func (c *ProvisionSite) downloadMissingRootFiles(ctx context.Context, path, bucketPath string) error {
-	dir, err := os.ReadDir(path)
-	if err != nil {
-		return err
-	}
-	if len(dir) == 1 { // if only templates folder is present
-		slog.Info("directory %v is empty, downloading sources", "downloadTemplate", path)
-		files := c.storage.ListFiles(ctx, 100, &s3.ListObjectsV2Input{
-			Prefix: aws.String(bucketPath),
-		})
-		filesToDownload := make([]string, 0)
-		for _, file := range files {
-			// everything under templates/
-			if strings.Contains(file, "/templates/") || file == bucketPath {
-				continue
-			}
-			filesToDownload = append(filesToDownload, file)
-		}
-		err = c.storage.DownloadFiles(ctx, filesToDownload, path, bucketPath)
-		if err != nil {
-			slog.Error("error downloading template's sources %v", "template", err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (c *ProvisionSite) downloadMissingTemplateFiles(ctx context.Context, path, bucketPath string) error {
-	dir, err := os.ReadDir(path)
-	if err != nil {
-		return err
-	}
-	if len(dir) == 0 {
-		slog.Info("directory is empty, downloading sources", "dir", path)
-		files := c.storage.ListFiles(ctx, 100, &s3.ListObjectsV2Input{
-			Prefix: aws.String(bucketPath),
-		})
-		err = c.storage.DownloadFiles(ctx, files, path, bucketPath)
-		if err != nil {
-			slog.Error("error downloading template's sources %v", "template", err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-func dirExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	return false, err
-}
-
 func saveFieldsToFile(fields json.RawMessage, fullPath string) error {
 	jsonBytes, err := json.MarshalIndent(fields, "", "  ")
 	if err != nil {
@@ -334,22 +201,4 @@ func cleanBuild(filename string) {
 		return
 	}
 	slog.Info("Success build cleanup", "cleanup", "")
-}
-
-func readFilesFromDir(dir string) []string {
-	var files []string
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		slog.Error("Can't find provided directory", "dir", err)
-	}
-	for _, entry := range entries {
-		fullPath := filepath.Join(dir, entry.Name())
-		if entry.IsDir() {
-			subFiles := readFilesFromDir(fullPath)
-			files = append(files, subFiles...)
-		} else {
-			files = append(files, fullPath)
-		}
-	}
-	return files
 }

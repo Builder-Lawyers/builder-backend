@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,7 +55,7 @@ func Test_Upload_File_When_Called_With_Valid_File_Then_Inserted_In_DB_And_Upload
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.FileURL)
 
-	var createdFileID string
+	var createdFileID uuid.UUID
 	err = testinfra.Pool.QueryRow(ctx, "SELECT id FROM builder.files WHERE id = $1", resp.FileID).Scan(&createdFileID)
 	require.NoError(t, err)
 
@@ -62,7 +63,7 @@ func Test_Upload_File_When_Called_With_Valid_File_Then_Inserted_In_DB_And_Upload
 	files := s3Storage.ListFiles(ctx, 1, &s3.ListObjectsV2Input{Bucket: aws.String(bucketName), Prefix: aws.String(prefix)})
 	require.Len(t, files, 1)
 	objectKey := files[0][strings.LastIndex(files[0], "/")+1:] // get object key after prefix
-	require.Equal(t, createdFileID, objectKey)
+	require.Equal(t, createdFileID.String(), objectKey)
 }
 
 func getRequestFileHeader() *multipart.FileHeader {

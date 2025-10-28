@@ -7,7 +7,7 @@ require (
 	github.com/Builder-Lawyers/builder-backend/pkg/env v0.0.0-20251025165013-c3f7a720fe16
 	github.com/Builder-Lawyers/builder-backend/pkg/interfaces v0.0.0-20251026114449-8cfdfca40d53
 	github.com/MicahParks/keyfunc/v3 v3.6.1
-	github.com/aws/aws-sdk-go-v2 v1.39.3
+	github.com/aws/aws-sdk-go-v2 v1.39.4
 	github.com/aws/aws-sdk-go-v2/config v1.27.5
 	github.com/aws/aws-sdk-go-v2/service/acm v1.37.2
 	github.com/aws/aws-sdk-go-v2/service/cloudfront v1.53.2
@@ -39,8 +39,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.1 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.5 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.15.2 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.10 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.10 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.11 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.11 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.0 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.6 // indirect
 	github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider v1.57.8 // indirect
@@ -48,6 +48,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.8.6 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.6 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.42.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.20.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.23.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.28.2 // indirect

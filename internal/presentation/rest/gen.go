@@ -60,6 +60,9 @@ type ServerInterface interface {
 	// Create a new template
 	// (POST /template)
 	CreateTemplate(c *fiber.Ctx) error
+	// Update templates
+	// (PUT /template)
+	UpdateTemplates(c *fiber.Ctx) error
 	// Gets template list with pagination
 	// (POST /template/list)
 	ListTemplates(c *fiber.Ctx) error
@@ -221,6 +224,12 @@ func (siw *ServerInterfaceWrapper) CreateTemplate(c *fiber.Ctx) error {
 	return siw.Handler.CreateTemplate(c)
 }
 
+// UpdateTemplates operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTemplates(c *fiber.Ctx) error {
+
+	return siw.Handler.UpdateTemplates(c)
+}
+
 // ListTemplates operation middleware
 func (siw *ServerInterfaceWrapper) ListTemplates(c *fiber.Ctx) error {
 
@@ -295,6 +304,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Patch(options.BaseURL+"/sites/:id", wrapper.UpdateSite)
 
 	router.Post(options.BaseURL+"/template", wrapper.CreateTemplate)
+
+	router.Put(options.BaseURL+"/template", wrapper.UpdateTemplates)
 
 	router.Post(options.BaseURL+"/template/list", wrapper.ListTemplates)
 

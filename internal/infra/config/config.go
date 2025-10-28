@@ -8,14 +8,15 @@ import (
 )
 
 type ProvisionConfig struct {
-	BuildFolder     string
-	TemplatesFolder string
-	S3ObjectURL     string
-	BucketPath      string
-	PathToFile      string
-	Filename        string
-	BaseDomain      string
-	Defaults        *Defaults
+	BuildFolder             string
+	TemplatesFolder         string
+	S3ObjectURL             string
+	TemplateSrcBucketPath   string
+	TemplateBuildBucketPath string
+	PathToFile              string
+	Filename                string
+	BaseDomain              string
+	Defaults                *Defaults
 }
 
 type Defaults struct {
@@ -32,14 +33,15 @@ func NewProvisionConfig() ProvisionConfig {
 	buildFolder := filepath.Join(parent, "templates-repo")
 	templatesFolder := filepath.Join(buildFolder, "templates")
 	return ProvisionConfig{
-		BuildFolder:     env.GetEnv("P_BUILD_FOLDER", buildFolder),
-		TemplatesFolder: env.GetEnv("P_TEMPLATES_FOLDER", templatesFolder),
-		S3ObjectURL:     os.Getenv("P_S3_OBJECT_URL"),
-		BucketPath:      env.GetEnv("P_BUCKET_PATH", "templates-sources/"),
-		PathToFile:      env.GetEnv("P_PATH_TO_FILE", "/"),
-		Filename:        env.GetEnv("P_FILENAME", "pages.json"),
-		BaseDomain:      os.Getenv("P_BASE_DOMAIN"),
-		Defaults:        NewDefaults(),
+		BuildFolder:             env.GetEnv("P_BUILD_FOLDER", buildFolder),
+		TemplatesFolder:         env.GetEnv("P_TEMPLATES_FOLDER", templatesFolder),
+		S3ObjectURL:             os.Getenv("P_S3_OBJECT_URL"),
+		TemplateSrcBucketPath:   env.GetEnv("P_SRC_BUCKET_PATH", "templates-sources/"),
+		TemplateBuildBucketPath: env.GetEnv("P_BUILD_BUCKET_PATH", "templates-builds/"),
+		PathToFile:              env.GetEnv("P_PATH_TO_FILE", ""),
+		Filename:                env.GetEnv("P_FILENAME", "pages.json"),
+		BaseDomain:              os.Getenv("P_BASE_DOMAIN"),
+		Defaults:                NewDefaults(),
 	}
 }
 

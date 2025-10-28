@@ -26,8 +26,7 @@ CREATE TABLE IF NOT EXISTS builder.templates (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
     name VARCHAR(100) NOT NULL,
     fields JSONB,
-    links JSONB, -- [images]
-    url VARCHAR(255)
+    styles VARCHAR(255)
 );
 
 CREATE TABLE IF NOT EXISTS builder.outbox (

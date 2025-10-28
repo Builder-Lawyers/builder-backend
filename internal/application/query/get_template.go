@@ -2,6 +2,7 @@ package query
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"path/filepath"
 
@@ -31,21 +32,23 @@ func (c *GetTemplate) Query(ctx context.Context, templateID uint16) (*dto.Templa
 	defer uow.Finalize(&err)
 
 	var templateName string
-	err = tx.QueryRow(ctx, "SELECT name FROM builder.templates WHERE id = $1", templateID).Scan(&templateName)
+	var styles sql.NullString
+	err = tx.QueryRow(ctx, "SELECT name, styles FROM builder.templates WHERE id = $1", templateID).Scan(&templateName, &styles)
 	if err != nil {
 		return nil, fmt.Errorf("err getting template name")
 	}
 
-	fieldsFile, err := c.storage.GetFile(ctx, c.getStructureFilePath(templateName))
-	if err != nil {
-		return nil, err
-	}
-
-	return &dto.TemplateInfo{
+	templateInfo := &dto.TemplateInfo{
 		Id:           int(templateID),
 		TemplateName: templateName,
-		Structure:    string(fieldsFile),
-	}, nil
+		Styles:       styles.String,
+	}
+
+	if styles.Valid {
+		templateInfo.Structure = c.getStructureFilePath(templateName)
+	}
+
+	return templateInfo, nil
 }
 
 func (c *GetTemplate) QueryList(ctx context.Context, req *dto.ListTemplatePaginator) (*dto.ListTemplateInfo, error) {
@@ -69,7 +72,7 @@ func (c *GetTemplate) QueryList(ctx context.Context, req *dto.ListTemplatePagina
 
 	rows, err := tx.Query(
 		ctx,
-		`SELECT id, name 
+		`SELECT id, name, styles  
 		 FROM builder.templates 
 		 ORDER BY id ASC 
 		 LIMIT $1 OFFSET $2`,
@@ -83,10 +86,15 @@ func (c *GetTemplate) QueryList(ctx context.Context, req *dto.ListTemplatePagina
 	list := make([]dto.TemplateInfo, 0, size)
 	for rows.Next() {
 		var t dto.TemplateInfo
-		if err := rows.Scan(&t.Id, &t.TemplateName); err != nil {
+		var styles sql.NullString
+		if err := rows.Scan(&t.Id, &t.TemplateName, &styles); err != nil {
 			return nil, err
 		}
-		t.Structure = c.getStructureFilePath(t.TemplateName)
+		t.Styles = styles.String
+		// if styles are present == template is built
+		if styles.Valid {
+			t.Structure = c.getStructureFilePath(t.TemplateName)
+		}
 		list = append(list, t)
 	}
 	if err := rows.Err(); err != nil {
@@ -107,7 +115,13 @@ func (c *GetTemplate) QueryList(ctx context.Context, req *dto.ListTemplatePagina
 }
 
 func (c *GetTemplate) getStructureFilePath(templateName string) string {
-	templatePath := filepath.Join(c.cfg.BucketPath, "templates", templateName)
+	templatePath := fmt.Sprintf("%stemplates/%s", c.cfg.TemplateSrcBucketPath, templateName)
+	structureFile := fmt.Sprintf("%s/%s%s", templatePath, c.cfg.PathToFile, c.cfg.Filename)
+	return fmt.Sprintf("%v/%v", c.cfg.S3ObjectURL, structureFile)
+}
+
+func (c *GetTemplate) getStylesFilePath(templateName string) string {
+	templatePath := filepath.Join(c.cfg.TemplateSrcBucketPath, "templates", templateName)
 	structureFile := filepath.Join(templatePath+c.cfg.PathToFile, c.cfg.Filename)
-	return fmt.Sprintf("%v/%v", c.cfg.S3ObjectURL+structureFile)
+	return fmt.Sprintf("%s/%s", c.cfg.S3ObjectURL, structureFile)
 }

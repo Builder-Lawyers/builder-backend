@@ -143,7 +143,7 @@ func (o *OutboxPoller) pollTable(ctx context.Context) {
 	}
 
 	wg.Wait()
-	slog.Info("Finished poller thread processing")
+	slog.Debug("Finished poller thread processing")
 }
 
 func (o *OutboxPoller) handleEvent(ctx context.Context, outbox db.Outbox) error {
