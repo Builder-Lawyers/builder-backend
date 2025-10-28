@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS builder.files (
 );
 
 insert into builder.users (id, stripe_id, status, email, created_at) values ('021804b8-5071-7049-7034-8853ffd88039',  'cus_SzleNRbLmsHvcs','Confirmed', 'sanity@mailinator.com', CURRENT_TIMESTAMP);
-insert into builder.templates(name) VALUES ('template-v1');
+insert into builder.templates(name, styles) VALUES ('template-v1', 'https://sanity-web.s3.eu-north-1.amazonaws.com/templates-builds/template-v1/_astro/style.CKGSaZmw.css');
 insert into builder.templates(name) VALUES ('template-v2');
 insert into builder.payment_plans(stripe_id, description, price) VALUES ('price_1S2g3TBUqUlKX6nYFU5mN5HW', 'Simple site with no separate domain', 800);
 insert into builder.payment_plans(stripe_id, description, price) VALUES ('price_1S3d1JBUqUlKX6nYewiReS7I', 'Simple site with separate domain', 1300);
