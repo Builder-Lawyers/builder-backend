@@ -98,6 +98,19 @@ func (o *OutboxPoller) pollTable(ctx context.Context) {
 		return
 	}
 
+	var eventsPolled int
+	countQuery := "SELECT count(*) FROM builder.outbox WHERE status = 0	"
+	err = tx.QueryRow(ctx, countQuery).Scan(&eventsPolled)
+	if err != nil {
+		slog.Error("error counting events", "err", err)
+		return
+	}
+	if eventsPolled == 0 {
+		_ = uow.Rollback()
+		slog.Debug("no events to process")
+		return
+	}
+
 	query := "SELECT * FROM builder.outbox WHERE status = 0 ORDER BY created_at FOR NO KEY UPDATE LIMIT $1"
 	rows, err := tx.Query(ctx, query, o.cfg.limit)
 	if err != nil {
@@ -119,7 +132,7 @@ func (o *OutboxPoller) pollTable(ctx context.Context) {
 	}
 
 	if err = rows.Err(); err != nil {
-		slog.Error("error reading result sets, ", "err", err)
+		slog.Error("error reading result sets", "err", err)
 	}
 
 	_, err = tx.Exec(ctx, "UPDATE builder.outbox SET status = $1 WHERE id = ANY($2)", consts.Processing, eventIDs)

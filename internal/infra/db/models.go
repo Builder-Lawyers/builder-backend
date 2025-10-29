@@ -80,5 +80,5 @@ type Session struct {
 	ID           uuid.UUID `db:"id"`
 	UserID       uuid.UUID `db:"user_id"`
 	RefreshToken string    `db:"refresh_token"`
-	IssuedAt     time.Time `db:"issued_at"`
+	ExpiresAt    time.Time `db:"expires_at"`
 }

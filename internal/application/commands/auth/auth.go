@@ -3,9 +3,10 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
-	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
@@ -19,7 +20,6 @@ import (
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
-	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider/types"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -52,16 +52,6 @@ func (c *Auth) CreateSession(ctx context.Context, req dto.CreateSession) (string
 		return "", fmt.Errorf("failed to parse JWT: %v", err)
 	}
 
-	//claims, ok := token.Claims.(jwt.MapClaims)
-	//if ok && token.Valid {
-	//	fmt.Println("Token is valid")
-	//	fmt.Println("sub:", claims["sub"])
-	//} else {
-	//	return "", fmt.Errorf("invalid token")
-	//}
-
-	//c.cache[claims["sub"].(string)] = req.AccessToken
-
 	idToken, _, err := new(jwt.Parser).ParseUnverified(req.IdToken, jwt.MapClaims{})
 	if err != nil {
 		return "", err
@@ -81,19 +71,6 @@ func (c *Auth) CreateSession(ctx context.Context, req dto.CreateSession) (string
 		claims["email"].(string),
 	).Scan(&userID)
 	if err != nil {
-		//if errors.Is(err, sql.ErrNoRows) {
-		//	newUser, err := createUserFromClaims(claims)
-		//	if err != nil {
-		//		return "", fmt.Errorf("err creating new user, %v", err)
-		//	}
-		//	userID = newUser.ID
-		//	_, err = tx.Exec(ctx, "INSERT INTO builder.users(id, first_name, second_name, email, created_at) VALUES ($1,$2,$3,$4,$5)",
-		//		newUser.ID, newUser.FirstName, newUser.SecondName, newUser.Email, newUser.CreatedAt,
-		//	)
-		//	if err != nil {
-		//		return "", fmt.Errorf("err inserting user, %v", err)
-		//	}
-		//}
 		return "", fmt.Errorf("error getting user by email, %v", err)
 	}
 
@@ -101,11 +78,11 @@ func (c *Auth) CreateSession(ctx context.Context, req dto.CreateSession) (string
 		ID:           uuid.New(),
 		UserID:       userID,
 		RefreshToken: req.RefreshToken,
-		IssuedAt:     time.Now(),
+		ExpiresAt:    time.Now().Add(time.Hour * time.Duration(c.cfg.SessionLifetimeHours)),
 	}
 
-	_, err = tx.Exec(ctx, "INSERT INTO builder.sessions(id, user_id, refresh_token, issued_at) VALUES ($1,$2,$3,$4)",
-		session.ID, session.UserID, session.RefreshToken, session.IssuedAt)
+	_, err = tx.Exec(ctx, "INSERT INTO builder.sessions(id, user_id, refresh_token, expires_at) VALUES ($1,$2,$3,$4)",
+		session.ID, session.UserID, session.RefreshToken, session.ExpiresAt)
 	if err != nil {
 		return "", fmt.Errorf("error creating a session, %v", err)
 	}
@@ -178,7 +155,7 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 
 	input := &cognitoidentityprovider.AdminConfirmSignUpInput{
 		UserPoolId: aws.String(c.cfg.UserPoolID),
-		Username:   aws.String(email), // TODO: or email?
+		Username:   aws.String(email),
 	}
 
 	_, err = c.cognito.AdminConfirmSignUp(ctx, input)
@@ -198,34 +175,33 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 	}, nil
 }
 
-func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto.OauthTokenVerified, error) {
+func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto.SessionInfo, string, error) {
 
 	claims, err := c.verifyGoogleIDToken(req.IdToken)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	email := claims["email"].(string)
-	sub := claims["sub"].(string)
-	slog.Info(sub)
+	providerSub := claims["sub"].(string)
 
-	var userID uuid.UUID
-	adminCreateResponse, err := c.cognito.AdminCreateUser(ctx, &cognitoidentityprovider.AdminCreateUserInput{
-		UserPoolId: &c.cfg.UserPoolID,
-		Username:   &email,
-		UserAttributes: []types.AttributeType{
-			{Name: aws.String("email"), Value: aws.String(email)},
-			{Name: aws.String("email_verified"), Value: aws.String("true")},
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("admin create: %v", err)
-	}
-	for _, attribute := range adminCreateResponse.User.Attributes {
-		if *attribute.Name == "sub" {
-			userID = uuid.MustParse(*attribute.Value)
-		}
-	}
+	// TODO: understand if there's any sense to save users on cognito
+	//adminCreateResponse, err := c.cognito.AdminCreateUser(ctx, &cognitoidentityprovider.AdminCreateUserInput{
+	//	UserPoolId: &c.cfg.UserPoolID,
+	//	Username:   &email,
+	//	UserAttributes: []types.AttributeType{
+	//		{Name: aws.String("email"), Value: aws.String(email)},
+	//		{Name: aws.String("email_verified"), Value: aws.String("true")},
+	//	},
+	//})
+	//if err != nil {
+	//	return nil, "", fmt.Errorf("admin create: %v", err)
+	//}
+	//for _, attribute := range adminCreateResponse.User.Attributes {
+	//	if *attribute.Name == "sub" {
+	//		userID = uuid.MustParse(*attribute.Value)
+	//	}
+	//}
 
 	//_, err = c.cognito.AdminConfirmSignUp(context.Background(), input)
 	//if err != nil {
@@ -235,29 +211,63 @@ func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+
+	// check if user from this provider is already registered
+	// TODO: when add new providers, avoid duplicate users by checking email
+	var existingUser sql.NullString
+	err = tx.QueryRow(ctx, "SELECT id FROM builder.user_identities WHERE provider = $1 AND sub = $2",
+		req.Provider, providerSub).Scan(&existingUser)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, "", fmt.Errorf("err checking if user already registered, %v", err)
+		}
+	}
+	if existingUser.Valid {
+		_ = uow.Rollback()
+		return c.createSessionIfNotExists(ctx, uuid.MustParse(existingUser.String))
 	}
 	defer uow.Finalize(&err)
 
-	_, err = tx.Exec(ctx, "INSERT INTO builder.users(id, status, email, created_at)",
-		userID, consts.UserConfirmed, email, time.Now())
+	firstName := ""
+	secondName := ""
+	if v, ok := claims["name"]; ok {
+		nameParts := strings.Split(v.(string), " ")
+		firstName = nameParts[0]
+		if len(nameParts) == 2 {
+			secondName = nameParts[1]
+		}
+	}
+	userID := uuid.New()
+	_, err = tx.Exec(ctx, "INSERT INTO builder.users(id, first_name, second_name, status, email, created_at) VALUES($1,$2,$3,$4,$5,$6)",
+		userID, firstName, secondName, consts.UserConfirmed, email, time.Now())
 	if err != nil {
-		return nil, fmt.Errorf("err inserting user, %v", err)
+		return nil, "", fmt.Errorf("err inserting user, %v", err)
+	}
+
+	_, err = tx.Exec(ctx, "INSERT INTO builder.user_identities(id, provider, sub) VALUES($1,$2,$3)", userID, req.Provider, providerSub)
+	if err != nil {
+		return nil, "", fmt.Errorf("err mapping user to identity, %v", err)
 	}
 
 	session := db.Session{
 		ID:           uuid.New(),
 		UserID:       userID,
-		RefreshToken: "",
-		IssuedAt:     time.Now(),
+		RefreshToken: uuid.NewString(),
+		ExpiresAt:    time.Now().Add(time.Hour * time.Duration(c.cfg.SessionLifetimeHours)),
 	}
 
-	_, err = tx.Exec(ctx, "INSERT INTO builder.sessions(id, user_id, refresh_token, issued_at) VALUES ($1,$2,$3,$4)",
-		session.ID, session.UserID, session.RefreshToken, session.IssuedAt)
+	_, err = tx.Exec(ctx, "INSERT INTO builder.sessions(id, user_id, refresh_token, expires_at) VALUES ($1,$2,$3,$4)",
+		session.ID, session.UserID, session.RefreshToken, session.ExpiresAt)
+	if err != nil {
+		return nil, "", fmt.Errorf("err creating oauth2 based session, %v", err)
+	}
 
-	return &dto.OauthTokenVerified{
+	return &dto.SessionInfo{
 		UserID: userID,
-	}, nil
+		Email:  email,
+	}, session.ID.String(), nil
 }
 
 func (c *Auth) GetSession(ctx context.Context, id uuid.UUID) (*dto.SessionInfo, error) {
@@ -318,7 +328,7 @@ func (c *Auth) GetIdentity(ctx context.Context, id uuid.UUID) (*auth.Identity, e
 func (c *Auth) verifyGoogleIDToken(idToken string) (map[string]any, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 
-	jwks, err := keyfunc.NewDefaultCtx(ctx, []string{c.cfg.IssuerURL})
+	jwks, err := keyfunc.NewDefaultCtx(ctx, []string{c.cfg.GoogleIssuerURL})
 	cancel()
 	if err != nil {
 		return nil, fmt.Errorf("fetch jwks: %v", err)
@@ -331,6 +341,62 @@ func (c *Auth) verifyGoogleIDToken(idToken string) (map[string]any, error) {
 	}
 
 	return claims, nil
+}
+
+func (c *Auth) createSessionIfNotExists(ctx context.Context, userID uuid.UUID) (*dto.SessionInfo, string, error) {
+	uow := c.uowFactory.GetUoW()
+	tx, err := uow.Begin()
+	if err != nil {
+		return nil, "", err
+	}
+	defer uow.Finalize(&err)
+
+	var sessionID uuid.UUID
+	var existingSession sql.NullString
+	err = tx.QueryRow(ctx, "SELECT id FROM builder.sessions WHERE user_id = $1 AND expires_at < $2",
+		userID, time.Now()).Scan(&existingSession)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, "", fmt.Errorf("error getting user by email, %v", err)
+		}
+	}
+
+	if !existingSession.Valid {
+		session := db.Session{
+			ID:           uuid.New(),
+			UserID:       userID,
+			RefreshToken: uuid.NewString(),
+			ExpiresAt:    time.Now().Add(time.Hour * time.Duration(c.cfg.SessionLifetimeHours)),
+		}
+		_, err = tx.Exec(ctx, "INSERT INTO builder.sessions(id, user_id, refresh_token, expires_at) VALUES ($1,$2,$3,$4)",
+			session.ID, session.UserID, session.RefreshToken, session.ExpiresAt)
+		if err != nil {
+			return nil, "", fmt.Errorf("err creating a session, %v", err)
+		}
+		sessionID = session.ID
+	}
+
+	var siteID sql.NullInt64
+	var email string
+	err = tx.QueryRow(ctx, "SELECT s.id, u.email FROM builder.users u "+
+		"LEFT JOIN builder.sites s ON u.id = s.creator_id "+
+		"WHERE u.id = $1 LIMIT 1", userID).Scan(&siteID, &email)
+	if err != nil {
+		return nil, "", fmt.Errorf("err getting existing user info, %v", err)
+	}
+
+	sessionInfo := &dto.SessionInfo{
+		UserID: userID,
+		Email:  email,
+	}
+
+	if siteID.Valid {
+		sessionInfo.UserSite = &dto.UserSite{
+			SiteID: uint64(siteID.Int64),
+		}
+	}
+
+	return sessionInfo, sessionID.String(), nil
 }
 
 func createUserFromClaims(claims jwt.MapClaims) (*db.User, error) {

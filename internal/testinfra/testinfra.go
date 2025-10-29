@@ -77,11 +77,22 @@ func SetupDB() *pgxpool.Pool {
 		  id UUID PRIMARY KEY,
 		  email TEXT UNIQUE NOT NULL
 		);
+		CREATE TABLE IF NOT EXISTS builder.sites (
+			id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+			template_id SMALLINT NOT NULL,
+			creator_id UUID NOT NULL,
+			plan_id SMALLINT NOT NULL,
+			subscription_id VARCHAR(60),
+			status VARCHAR(30) NOT NULL,
+			fields JSONB,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ
+		);
 		CREATE TABLE IF NOT EXISTS builder.sessions (
 		  id UUID PRIMARY KEY,
 		  user_id UUID NOT NULL REFERENCES builder.users(id),
 		  refresh_token TEXT,
-		  issued_at TIMESTAMP WITH TIME ZONE
+		  expires_at TIMESTAMP WITH TIME ZONE
 		);
 		CREATE TABLE IF NOT EXISTS builder.files (
 			id UUID PRIMARY KEY

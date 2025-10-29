@@ -28,6 +28,11 @@ const (
 	InCreation        UpdateSiteRequestNewStatus = "InCreation"
 )
 
+// Defines values for VerifyOauthTokenProvider.
+const (
+	Google VerifyOauthTokenProvider = "Google"
+)
+
 // CreateConfirmation defines model for CreateConfirmation.
 type CreateConfirmation struct {
 	Email  string             `json:"email"`
@@ -129,12 +134,6 @@ type ListTemplatePaginator struct {
 	Size *int `json:"size,omitempty"`
 }
 
-// OauthTokenVerified defines model for OauthTokenVerified.
-type OauthTokenVerified struct {
-	Email  string             `json:"email"`
-	UserID openapi_types.UUID `json:"userID"`
-}
-
 // PaymentStatusResponse defines model for PaymentStatusResponse.
 type PaymentStatusResponse struct {
 	PaymentIntentID     string `json:"paymentIntentID"`
@@ -208,8 +207,12 @@ type VerifyCode struct {
 
 // VerifyOauthToken defines model for VerifyOauthToken.
 type VerifyOauthToken struct {
-	IdToken string `json:"idToken"`
+	IdToken  string                   `json:"idToken"`
+	Provider VerifyOauthTokenProvider `json:"provider"`
 }
+
+// VerifyOauthTokenProvider defines model for VerifyOauthToken.Provider.
+type VerifyOauthTokenProvider string
 
 // BadRequestError defines model for BadRequestError.
 type BadRequestError = ErrorResponse

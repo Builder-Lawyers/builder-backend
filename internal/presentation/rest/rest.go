@@ -268,10 +268,19 @@ func (s *Server) VerifyOauthToken(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	verifiedUser, err := s.commands.Auth.VerifyOauth(c.UserContext(), &req)
+	verifiedUser, sessionID, err := s.commands.Auth.VerifyOauth(c.UserContext(), &req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "ID",
+		Value:    sessionID,
+		Expires:  time.Now().Add(24 * time.Hour), // 1 day
+		HTTPOnly: true,                           // prevent JS access
+		Secure:   false,                          // TODO: set to true to send only over HTTPS
+		SameSite: "Strict",                       // protect against CSRF
+	})
 
 	return c.Status(fiber.StatusOK).JSON(verifiedUser)
 }

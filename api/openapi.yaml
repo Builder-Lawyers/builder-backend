@@ -312,6 +312,10 @@ paths:
       responses:
         '200':
           description: Session ID in cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionInfo'
           headers:
             Set-Cookie:
               description: Session cookie (HttpOnly)
@@ -396,7 +400,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OauthTokenVerified'
+                $ref: '#/components/schemas/SessionInfo'
         '400':
           $ref: '#/components/responses/BadRequestError'
         '500':
@@ -762,8 +766,12 @@ components:
         idToken:
           type: string
           example: 3ad6c7c6-c119-475.1203213adssajd.23eqwsaedsa
+        provider:
+          type: string
+          enum: [Google]
       required:
         - idToken
+        - provider
 
     OauthTokenVerified:
       type: object
