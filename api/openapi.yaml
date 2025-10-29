@@ -432,6 +432,26 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+    get:
+      summary: Gets a list of payment plans
+      description: Returns a list of payment plans
+      operationId: listPaymentPlans
+      tags:
+        - Payments
+      responses:
+        '200':
+          description: Payment plan list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentPlanList'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
   /payments/{id}:
     get:
       summary: Gets a payment checkout session info
@@ -830,6 +850,29 @@ components:
         subscriptionID:
           type: string
           example: 4ad6c4c6-c119-4759-9f04-4e985a6a11e7
+
+    PaymentPlanList:
+      type: array
+      items:
+        $ref: '#/components/schemas/PaymentPlan'
+
+    PaymentPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: uint8
+        description:
+          type: string
+          example: Simple site with no separate domain
+        price:
+          type: integer
+          description: Price in cents
+          example: 800
+      required:
+        - id
+        - description
+        - price
 
     PaymentStatusResponse:
       type: object

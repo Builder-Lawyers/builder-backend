@@ -119,7 +119,9 @@ func Init() {
 	fmt.Println("Gracefully shutting down...")
 	_ = app.Shutdown()
 	outboxPoller.Stop()
-	templatesQueuePoller.Stop()
+	if templateChangesConfig.Enabled {
+		templatesQueuePoller.Stop()
+	}
 
 	fmt.Println("Running cleanup tasks...")
 

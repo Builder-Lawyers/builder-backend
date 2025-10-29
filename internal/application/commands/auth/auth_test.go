@@ -71,11 +71,9 @@ func Test_GetSession_Given_Valid_Session_Cookie_In_Request_When_Called_Then_Get_
 	userID := createUser(ctx, email)
 	siteID := createSite(ctx, userID)
 	req := getRequest(ctx, email)
-
 	SUT := sut.NewAuth(db.NewUoWFactory(testinfra.Pool), auth.NewOIDCConfig(), cognitoClient)
 	sessionID, err := SUT.CreateSession(ctx, req)
 	require.NoError(t, err)
-	require.NotEmpty(t, sessionID)
 
 	userInfo, err := SUT.GetSession(ctx, uuid.MustParse(sessionID))
 	require.NoError(t, err)

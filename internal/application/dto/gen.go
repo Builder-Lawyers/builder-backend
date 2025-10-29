@@ -134,6 +134,18 @@ type ListTemplatePaginator struct {
 	Size *int `json:"size,omitempty"`
 }
 
+// PaymentPlan defines model for PaymentPlan.
+type PaymentPlan struct {
+	Description string `json:"description"`
+	Id          uint8  `json:"id"`
+
+	// Price Price in cents
+	Price int `json:"price"`
+}
+
+// PaymentPlanList defines model for PaymentPlanList.
+type PaymentPlanList = []PaymentPlan
+
 // PaymentStatusResponse defines model for PaymentStatusResponse.
 type PaymentStatusResponse struct {
 	PaymentIntentID     string `json:"paymentIntentID"`

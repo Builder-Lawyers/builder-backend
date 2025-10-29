@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS builder.sessions (
 
 CREATE TABLE IF NOT EXISTS builder.confirmation_codes (
     code UUID PRIMARY KEY,
-    user_id UUID NOT NULL,
+    sub_id VARCHAR(200) NOT NULL,
     email VARCHAR(100),
     expires_at TIMESTAMPTZ NOT NULL
 );
@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS builder.files (
 );
 
 insert into builder.users (id, stripe_id, status, email, created_at) values ('421804b8-6271-7049-7034-8853ffd88056',  'cus_SzleNRbLmsHvcs','Confirmed', 'sanity@mailinator.com', CURRENT_TIMESTAMP);
-insert into builder.user_identities(id, provider, sub) VALUES ('421804b8-6271-7049-7034-8853ffd88056','cognito', '021804b8-5071-7049-7034-8853ffd88039');
+insert into builder.user_identities(id, provider, sub) VALUES ('421804b8-6271-7049-7034-8853ffd88056','cognito', '04f854f8-5021-7097-5716-193876ebe932');
 insert into builder.templates(name, styles) VALUES ('template-v1', 'https://sanity-web.s3.eu-north-1.amazonaws.com/templates-builds/template-v1/_astro/style.CKGSaZmw.css');
 insert into builder.templates(name) VALUES ('template-v2');
 insert into builder.payment_plans(stripe_id, description, price) VALUES ('price_1S2g3TBUqUlKX6nYFU5mN5HW', 'Simple site with no separate domain', 800);

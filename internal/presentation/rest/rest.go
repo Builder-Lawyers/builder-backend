@@ -2,6 +2,7 @@ package rest
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -25,7 +26,9 @@ func NewServer(queries *application.Queries, commands *application.Commands) *Se
 
 func (s *Server) CreateSite(c *fiber.Ctx) error {
 	var req dto.CreateSiteRequest
-	if err := c.BodyParser(&req); err != nil {
+	var err error
+	defer logError(&err, "CreateSite")
+	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
@@ -47,7 +50,9 @@ func (s *Server) CreateSite(c *fiber.Ctx) error {
 
 func (s *Server) UpdateSite(c *fiber.Ctx, id uint64) error {
 	var req dto.UpdateSiteRequest
-	if err := c.BodyParser(&req); err != nil {
+	var err error
+	defer logError(&err, "UpdateSite")
+	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
@@ -68,7 +73,8 @@ func (s *Server) UpdateSite(c *fiber.Ctx, id uint64) error {
 }
 
 func (s *Server) DeleteSite(c *fiber.Ctx, id uint64) error {
-
+	var err error
+	defer logError(&err, "DeleteSite")
 	identity, err := s.getIdentity(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
@@ -83,8 +89,10 @@ func (s *Server) DeleteSite(c *fiber.Ctx, id uint64) error {
 }
 
 func (s *Server) CreateTemplate(c *fiber.Ctx) error {
+	var err error
+	defer logError(&err, "CreateTemplate")
 	var req dto.CreateTemplateRequest
-	if err := c.BodyParser(&req); err != nil {
+	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
@@ -101,12 +109,14 @@ func (s *Server) CreateTemplate(c *fiber.Ctx) error {
 }
 
 func (s *Server) UpdateTemplates(c *fiber.Ctx) error {
+	var err error
+	defer logError(&err, "UpdateTemplates")
 	var req dto.UpdateTemplatesRequest
-	if err := c.BodyParser(&req); err != nil {
+	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	err := s.commands.UpdateTemplate.Execute(c.UserContext(), &req)
+	err = s.commands.UpdateTemplate.Execute(c.UserContext(), &req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -116,7 +126,9 @@ func (s *Server) UpdateTemplates(c *fiber.Ctx) error {
 
 func (s *Server) EnrichContent(c *fiber.Ctx) error {
 	var req dto.EnrichContentRequest
-	if err := c.BodyParser(&req); err != nil {
+	var err error
+	defer logError(&err, "EnrichContent")
+	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
@@ -133,6 +145,8 @@ func (s *Server) EnrichContent(c *fiber.Ctx) error {
 }
 
 func (s *Server) FileUpload(c *fiber.Ctx) error {
+	var err error
+	defer logError(&err, "FileUpload")
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
@@ -147,7 +161,8 @@ func (s *Server) FileUpload(c *fiber.Ctx) error {
 }
 
 func (s *Server) GetTemplate(c *fiber.Ctx, id uint16) error {
-
+	var err error
+	defer logError(&err, "GetTemplate")
 	templateInfo, err := s.queries.GetTemplate.Query(c.UserContext(), id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
@@ -157,8 +172,10 @@ func (s *Server) GetTemplate(c *fiber.Ctx, id uint16) error {
 }
 
 func (s *Server) ListTemplates(c *fiber.Ctx) error {
+	var err error
+	defer logError(&err, "ListTemplates")
 	var req dto.ListTemplatePaginator
-	if err := c.BodyParser(&req); err != nil {
+	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
@@ -171,7 +188,8 @@ func (s *Server) ListTemplates(c *fiber.Ctx) error {
 }
 
 func (s *Server) CheckDomain(c *fiber.Ctx, domain string) error {
-
+	var err error
+	defer logError(&err, "CheckDomain")
 	available, err := s.queries.CheckDomain.Query(c.UserContext(), domain)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
@@ -184,7 +202,8 @@ func (s *Server) CheckDomain(c *fiber.Ctx, domain string) error {
 }
 
 func (s *Server) GetSite(c *fiber.Ctx, id uint64) error {
-
+	var err error
+	defer logError(&err, "GetSite")
 	identity, err := s.getIdentity(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
@@ -198,6 +217,8 @@ func (s *Server) GetSite(c *fiber.Ctx, id uint64) error {
 }
 
 func (s *Server) GetSession(c *fiber.Ctx) error {
+	var err error
+	defer logError(&err, "GetSession")
 	sessionID, err := getSessionID(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
@@ -213,7 +234,9 @@ func (s *Server) GetSession(c *fiber.Ctx) error {
 
 func (s *Server) CreateSession(c *fiber.Ctx) error {
 	var req dto.CreateSession
-	if err := c.BodyParser(&req); err != nil {
+	var err error
+	defer logError(&err, "CreateSession")
+	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
@@ -236,11 +259,13 @@ func (s *Server) CreateSession(c *fiber.Ctx) error {
 
 func (s *Server) CreateConfirmation(c *fiber.Ctx) error {
 	var req dto.CreateConfirmation
-	if err := c.BodyParser(&req); err != nil {
+	var err error
+	defer logError(&err, "CreateConfirmation")
+	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	err := s.commands.Auth.CreateConfirmationCode(c.UserContext(), &req)
+	err = s.commands.Auth.CreateConfirmationCode(c.UserContext(), &req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -250,7 +275,9 @@ func (s *Server) CreateConfirmation(c *fiber.Ctx) error {
 
 func (s *Server) VerifyUser(c *fiber.Ctx) error {
 	var req dto.VerifyCode
-	if err := c.BodyParser(&req); err != nil {
+	var err error
+	defer logError(&err, "VerifyUser")
+	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
@@ -264,7 +291,9 @@ func (s *Server) VerifyUser(c *fiber.Ctx) error {
 
 func (s *Server) VerifyOauthToken(c *fiber.Ctx) error {
 	var req dto.VerifyOauthToken
-	if err := c.BodyParser(&req); err != nil {
+	var err error
+	defer logError(&err, "VerifyOauthToken")
+	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
@@ -285,9 +314,22 @@ func (s *Server) VerifyOauthToken(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(verifiedUser)
 }
 
+func (s *Server) ListPaymentPlans(c *fiber.Ctx) error {
+	var err error
+	defer logError(&err, "ListPaymentPlans")
+	resp, err := s.commands.Payment.ListPaymentPlans(c.UserContext())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(resp)
+}
+
 func (s *Server) CreatePayment(c *fiber.Ctx) error {
+	var err error
+	defer logError(&err, "CreatePayment")
 	var req dto.CreatePaymentRequest
-	if err := c.BodyParser(&req); err != nil {
+	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
@@ -308,7 +350,8 @@ func (s *Server) CreatePayment(c *fiber.Ctx) error {
 }
 
 func (s *Server) GetPaymentStatus(c *fiber.Ctx, id string) error {
-
+	var err error
+	defer logError(&err, "GetPaymentStatus")
 	paymentInfo, err := s.commands.Payment.GetPaymentInfo(c.UserContext(), id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
@@ -318,10 +361,11 @@ func (s *Server) GetPaymentStatus(c *fiber.Ctx, id string) error {
 }
 
 func (s *Server) HandleEvent(c *fiber.Ctx) error {
-
+	var err error
+	defer logError(&err, "HandleEvent")
 	signatureHeader := c.Get("Stripe-Signature")
 
-	err := s.commands.Payment.Webhook(c.UserContext(), c.Body(), signatureHeader)
+	err = s.commands.Payment.Webhook(c.UserContext(), c.Body(), signatureHeader)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -354,6 +398,12 @@ func getSessionID(c *fiber.Ctx) (uuid.UUID, error) {
 	}
 
 	return sessionID, nil
+}
+
+func logError(err *error, endpoint string) {
+	if *err != nil {
+		slog.Error("server error", "endpoint", endpoint, "err", *err)
+	}
 }
 
 func getToken(c *fiber.Ctx) string {

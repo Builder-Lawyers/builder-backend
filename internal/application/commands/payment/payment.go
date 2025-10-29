@@ -169,6 +169,36 @@ func (c *Payment) GetPaymentInfo(ctx context.Context, sessionID string) (*dto.Pa
 	}, nil
 }
 
+func (c *Payment) ListPaymentPlans(ctx context.Context) (*dto.PaymentPlanList, error) {
+	uow := c.uowFactory.GetUoW()
+	tx, err := uow.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer uow.Finalize(&err)
+
+	paymentPlans := make([]dto.PaymentPlan, 0, 2)
+
+	rows, err := tx.Query(ctx, "SELECT id, description, price FROM builder.payment_plans")
+	if err != nil {
+		return nil, fmt.Errorf("err getting plans %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var plan dto.PaymentPlan
+		if err = rows.Scan(&plan.Id, &plan.Description, &plan.Price); err != nil {
+			return nil, err
+		}
+		paymentPlans = append(paymentPlans, plan)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &paymentPlans, nil
+}
+
 func (c *Payment) Webhook(ctx context.Context, req []byte, stripeHeader string) error {
 	event, err := webhook.ConstructEvent(req, stripeHeader, c.cfg.webhookKey)
 	if err != nil {

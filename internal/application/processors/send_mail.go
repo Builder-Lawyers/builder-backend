@@ -39,7 +39,7 @@ func (c *SendMail) Handle(ctx context.Context, event events.SendMail) (shared.Uo
 	var email string
 	err = tx.QueryRow(ctx, "SELECT email FROM builder.users WHERE id = $1", event.UserID).Scan(&email)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("err getting user email, %v", err)
 	}
 	recipients := make([]string, 0)
 	recipients = append(recipients, email)
@@ -47,7 +47,7 @@ func (c *SendMail) Handle(ctx context.Context, event events.SendMail) (shared.Uo
 	var mailTemplate string
 	err = tx.QueryRow(ctx, "SELECT content FROM builder.mail_templates WHERE type = $1", mailData.GetMailType()).Scan(&mailTemplate)
 	if err != nil {
-		return uow, err
+		return uow, fmt.Errorf("err getting content for template, %v", err)
 	}
 
 	htmlBody, err := renderHTML(mailTemplate, mailData)
@@ -55,7 +55,7 @@ func (c *SendMail) Handle(ctx context.Context, event events.SendMail) (shared.Uo
 		return uow, fmt.Errorf("error rendering html, %v", err)
 	}
 
-	mail := db.Mail{
+	createdMail := db.Mail{
 		MailType:   mailData.GetMailType(),
 		Recipients: strings.Join(recipients, ","),
 		Subject:    event.Subject,
@@ -63,17 +63,17 @@ func (c *SendMail) Handle(ctx context.Context, event events.SendMail) (shared.Uo
 		SentAt:     time.Now(),
 	}
 	_, err = tx.Exec(ctx, "INSERT INTO builder.mails(type, recipients, subject, content, sent_at) VALUES ($1,$2,$3,$4,$5)",
-		mail.MailType, mail.Recipients, mail.Subject, mail.Content, mail.SentAt,
+		createdMail.MailType, createdMail.Recipients, createdMail.Subject, createdMail.Content, createdMail.SentAt,
 	)
 	if err != nil {
-		return uow, err
+		return uow, fmt.Errorf("err inserting mail in db, %v", err)
 	}
-	err = c.server.SendMail(recipients, mail.Subject, mail.Content)
+	err = c.server.SendMail(recipients, createdMail.Subject, createdMail.Content)
 	if err != nil {
 		return uow, err
 	}
 
-	slog.Info("mail sent", "id", mail.ID)
+	slog.Info("mail sent", "id", createdMail.ID)
 
 	return uow, nil
 }

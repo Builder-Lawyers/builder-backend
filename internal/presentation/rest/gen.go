@@ -36,6 +36,9 @@ type ServerInterface interface {
 	// Upload a file for site static content
 	// (POST /file/upload)
 	FileUpload(c *fiber.Ctx) error
+	// Gets a list of payment plans
+	// (GET /payments)
+	ListPaymentPlans(c *fiber.Ctx) error
 	// Gets a client secret to create a payment
 	// (POST /payments)
 	CreatePayment(c *fiber.Ctx) error
@@ -134,6 +137,12 @@ func (siw *ServerInterfaceWrapper) CheckDomain(c *fiber.Ctx) error {
 func (siw *ServerInterfaceWrapper) FileUpload(c *fiber.Ctx) error {
 
 	return siw.Handler.FileUpload(c)
+}
+
+// ListPaymentPlans operation middleware
+func (siw *ServerInterfaceWrapper) ListPaymentPlans(c *fiber.Ctx) error {
+
+	return siw.Handler.ListPaymentPlans(c)
 }
 
 // CreatePayment operation middleware
@@ -288,6 +297,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Get(options.BaseURL+"/domain/:domain", wrapper.CheckDomain)
 
 	router.Post(options.BaseURL+"/file/upload", wrapper.FileUpload)
+
+	router.Get(options.BaseURL+"/payments", wrapper.ListPaymentPlans)
 
 	router.Post(options.BaseURL+"/payments", wrapper.CreatePayment)
 

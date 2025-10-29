@@ -101,16 +101,22 @@ func (c *Auth) CreateConfirmationCode(ctx context.Context, req *dto.CreateConfir
 	code := uuid.New()
 	expiresAt := time.Now().Add(time.Minute * time.Duration(c.cfg.ConfirmationExpirationMins))
 
-	_, err = tx.Exec(ctx, "INSERT INTO builder.confirmation_codes(code, user_id, email, expires_at) VALUES ($1,$2,$3,$4)",
+	_, err = tx.Exec(ctx, "INSERT INTO builder.confirmation_codes(code, sub_id, email, expires_at) VALUES ($1,$2,$3,$4)",
 		code, req.UserID, req.Email, expiresAt)
 	if err != nil {
 		return fmt.Errorf("err generating a confirmation code, %v", err)
 	}
 
+	newUserID := uuid.New()
 	_, err = tx.Exec(ctx, "INSERT INTO builder.users(id, status, email, created_at) VALUES ($1,$2,$3,$4)",
-		req.UserID, consts.UserStatusNotConfirmed, req.Email, time.Now())
+		newUserID, consts.UserStatusNotConfirmed, req.Email, time.Now())
 	if err != nil {
 		return fmt.Errorf("err creating user, %v", err)
+	}
+
+	_, err = tx.Exec(ctx, "INSERT INTO builder.user_identities(id, provider, sub) VALUES($1,$2,$3)", newUserID, "Cognito", req.UserID)
+	if err != nil {
+		return fmt.Errorf("err creating user cognito identity, %v", err)
 	}
 
 	registrationConfirmData := mail.RegistrationConfirmData{
@@ -119,7 +125,7 @@ func (c *Auth) CreateConfirmationCode(ctx context.Context, req *dto.CreateConfir
 	}
 
 	sendMail := events.SendMail{
-		UserID:  req.UserID.String(),
+		UserID:  newUserID.String(),
 		Subject: registrationConfirmData.GetSubject(),
 		Data:    registrationConfirmData,
 	}
@@ -141,15 +147,16 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 	}
 	defer uow.Finalize(&err)
 
-	var userID uuid.UUID
+	var subID uuid.UUID
 	var email string
 	var expiresAt time.Time
-	err = tx.QueryRow(ctx, "SELECT user_id, email, expires_at FROM builder.confirmation_codes WHERE code = $1", req.Code).Scan(&userID, &email, &expiresAt)
+	err = tx.QueryRow(ctx, "SELECT sub_id, email, expires_at FROM builder.confirmation_codes WHERE code = $1", req.Code).Scan(&subID, &email, &expiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("err getting confirmation code, %v", err)
 	}
 
 	if expiresAt.Before(time.Now()) {
+		// TODO: clear user from db and cognito so he can re-register
 		return nil, fmt.Errorf("code is expired")
 	}
 
@@ -163,9 +170,20 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 		return nil, fmt.Errorf("failed to confirm user: %v", err)
 	}
 
+	var userID uuid.UUID
+	err = tx.QueryRow(ctx, "SELECT id FROM builder.user_identities WHERE provider = $1 AND sub = $2", "Cognito", subID).Scan(&userID)
+	if err != nil {
+		return nil, fmt.Errorf("err getting user from cognito sub, %v", err)
+	}
+
 	_, err = tx.Exec(ctx, "UPDATE builder.users SET status = $1 WHERE id = $2", consts.UserConfirmed, userID)
 	if err != nil {
 		return nil, fmt.Errorf("err updating user status, %v", err)
+	}
+
+	_, err = tx.Exec(ctx, "DELETE FROM builder.confirmation_codes WHERE code = $1", req.Code)
+	if err != nil {
+		return nil, fmt.Errorf("err deleting confirmation code")
 	}
 
 	// TODO: send registration success mail
@@ -177,6 +195,7 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 
 func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto.SessionInfo, string, error) {
 
+	var userID uuid.UUID
 	claims, err := c.verifyGoogleIDToken(req.IdToken)
 	if err != nil {
 		return nil, "", err
@@ -224,31 +243,51 @@ func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto
 			return nil, "", fmt.Errorf("err checking if user already registered, %v", err)
 		}
 	}
+	// user already registered with this provider -> create a new session or reuse existing
 	if existingUser.Valid {
 		_ = uow.Rollback()
 		return c.createSessionIfNotExists(ctx, uuid.MustParse(existingUser.String))
 	}
 	defer uow.Finalize(&err)
 
-	firstName := ""
-	secondName := ""
-	if v, ok := claims["name"]; ok {
-		nameParts := strings.Split(v.(string), " ")
-		firstName = nameParts[0]
-		if len(nameParts) == 2 {
-			secondName = nameParts[1]
+	var existingUserAnotherProvider sql.NullString
+	err = tx.QueryRow(ctx, "SELECT id FROM builder.users WHERE email = $1", email).Scan(&existingUserAnotherProvider)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, "", fmt.Errorf("err checking other identities, %v", err)
 		}
 	}
-	userID := uuid.New()
-	_, err = tx.Exec(ctx, "INSERT INTO builder.users(id, first_name, second_name, status, email, created_at) VALUES($1,$2,$3,$4,$5,$6)",
-		userID, firstName, secondName, consts.UserConfirmed, email, time.Now())
-	if err != nil {
-		return nil, "", fmt.Errorf("err inserting user, %v", err)
-	}
 
-	_, err = tx.Exec(ctx, "INSERT INTO builder.user_identities(id, provider, sub) VALUES($1,$2,$3)", userID, req.Provider, providerSub)
-	if err != nil {
-		return nil, "", fmt.Errorf("err mapping user to identity, %v", err)
+	// user already registered but with another provider -> create new user_identity
+	if existingUserAnotherProvider.Valid {
+		userID = uuid.MustParse(existingUserAnotherProvider.String)
+		_, err = tx.Exec(ctx, "INSERT INTO builder.user_identities(id, provider, sub) VALUES($1,$2,$3)",
+			userID, req.Provider, providerSub)
+		if err != nil {
+			return nil, "", fmt.Errorf("err creating new identity for existing user, %v", err)
+		}
+	} else {
+		// user is new -> create
+		firstName := ""
+		secondName := ""
+		if v, ok := claims["name"]; ok {
+			nameParts := strings.Split(v.(string), " ")
+			firstName = nameParts[0]
+			if len(nameParts) == 2 {
+				secondName = nameParts[1]
+			}
+		}
+		userID = uuid.New()
+		_, err = tx.Exec(ctx, "INSERT INTO builder.users(id, first_name, second_name, status, email, created_at) VALUES($1,$2,$3,$4,$5,$6)",
+			userID, firstName, secondName, consts.UserConfirmed, email, time.Now())
+		if err != nil {
+			return nil, "", fmt.Errorf("err inserting user, %v", err)
+		}
+
+		_, err = tx.Exec(ctx, "INSERT INTO builder.user_identities(id, provider, sub) VALUES($1,$2,$3)", userID, req.Provider, providerSub)
+		if err != nil {
+			return nil, "", fmt.Errorf("err mapping user to identity, %v", err)
+		}
 	}
 
 	session := db.Session{
