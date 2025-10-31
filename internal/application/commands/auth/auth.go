@@ -133,7 +133,7 @@ func (c *Auth) CreateConfirmationCode(ctx context.Context, req *dto.CreateConfir
 	eventRepo := repo.NewEventRepo(tx)
 	err = eventRepo.InsertEvent(ctx, sendMail)
 	if err != nil {
-		return fmt.Errorf("error creating event, %v", err)
+		return err
 	}
 
 	return nil
@@ -186,7 +186,21 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 		return nil, fmt.Errorf("err deleting confirmation code")
 	}
 
-	// TODO: send registration success mail
+	registrationSuccessData := mail.RegistrationSuccessData{
+		Year: strconv.Itoa(time.Now().Year()),
+	}
+
+	registrationSuccessMail := events.SendMail{
+		UserID:  userID.String(),
+		Subject: registrationSuccessData.GetSubject(),
+		Data:    registrationSuccessData,
+	}
+
+	eventRepo := repo.NewEventRepo(tx)
+	err = eventRepo.InsertEvent(ctx, registrationSuccessMail)
+	if err != nil {
+		return nil, err
+	}
 
 	return &dto.VerifiedUser{
 		UserID: userID,
@@ -204,29 +218,6 @@ func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto
 	email := claims["email"].(string)
 	providerSub := claims["sub"].(string)
 
-	// TODO: understand if there's any sense to save users on cognito
-	//adminCreateResponse, err := c.cognito.AdminCreateUser(ctx, &cognitoidentityprovider.AdminCreateUserInput{
-	//	UserPoolId: &c.cfg.UserPoolID,
-	//	Username:   &email,
-	//	UserAttributes: []types.AttributeType{
-	//		{Name: aws.String("email"), Value: aws.String(email)},
-	//		{Name: aws.String("email_verified"), Value: aws.String("true")},
-	//	},
-	//})
-	//if err != nil {
-	//	return nil, "", fmt.Errorf("admin create: %v", err)
-	//}
-	//for _, attribute := range adminCreateResponse.User.Attributes {
-	//	if *attribute.Name == "sub" {
-	//		userID = uuid.MustParse(*attribute.Value)
-	//	}
-	//}
-
-	//_, err = c.cognito.AdminConfirmSignUp(context.Background(), input)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to confirm user: %v", err)
-	//}
-
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
@@ -234,7 +225,6 @@ func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto
 	}
 
 	// check if user from this provider is already registered
-	// TODO: when add new providers, avoid duplicate users by checking email
 	var existingUser sql.NullString
 	err = tx.QueryRow(ctx, "SELECT id FROM builder.user_identities WHERE provider = $1 AND sub = $2",
 		req.Provider, providerSub).Scan(&existingUser)
@@ -287,6 +277,22 @@ func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto
 		_, err = tx.Exec(ctx, "INSERT INTO builder.user_identities(id, provider, sub) VALUES($1,$2,$3)", userID, req.Provider, providerSub)
 		if err != nil {
 			return nil, "", fmt.Errorf("err mapping user to identity, %v", err)
+		}
+
+		registrationSuccessData := mail.RegistrationSuccessData{
+			Year: strconv.Itoa(time.Now().Year()),
+		}
+
+		registrationSuccessMail := events.SendMail{
+			UserID:  userID.String(),
+			Subject: registrationSuccessData.GetSubject(),
+			Data:    registrationSuccessData,
+		}
+
+		eventRepo := repo.NewEventRepo(tx)
+		err = eventRepo.InsertEvent(ctx, registrationSuccessMail)
+		if err != nil {
+			return nil, "", err
 		}
 	}
 

@@ -102,7 +102,7 @@ func (c *UpdateSite) Execute(ctx context.Context, siteID uint64, req *dto.Update
 			eventRepo := repo.NewEventRepo(tx)
 			err = eventRepo.InsertEvent(ctx, deactivateSiteEvent)
 			if err != nil {
-				return 0, fmt.Errorf("error creating deactivate site event, %v", err)
+				return 0, err
 			}
 		}
 		return siteID, nil

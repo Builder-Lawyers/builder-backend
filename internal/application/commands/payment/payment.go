@@ -271,7 +271,7 @@ func (c *Payment) handleTrialEnds(ctx context.Context, event stripe.Event) error
 	eventRepo := repo.NewEventRepo(tx)
 	err = eventRepo.InsertEvent(ctx, sendMailEvent)
 	if err != nil {
-		return fmt.Errorf("failed to send an email, %v", err)
+		return err
 	}
 
 	slog.Info("Event sendMail created", "subID", subscription.ID)
@@ -338,7 +338,7 @@ func (c *Payment) handlePaymentFailed(ctx context.Context, event stripe.Event) e
 		eventRepo := repo.NewEventRepo(tx)
 		err = eventRepo.InsertEvent(ctx, deactivateSite)
 		if err != nil {
-			return fmt.Errorf("error creating event, %v", err)
+			return err
 		}
 
 	} else {

@@ -10,23 +10,26 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/application/dto"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/build"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/dns"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/storage"
-	"github.com/Builder-Lawyers/builder-backend/pkg/db"
+	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type UpdateTemplate struct {
-	uowFactory    *db.UOWFactory
-	storage       *storage.Storage
-	templateBuild *build.TemplateBuild
-	cfg           config.ProvisionConfig
+	uowFactory     *dbs.UOWFactory
+	storage        *storage.Storage
+	templateBuild  *build.TemplateBuild
+	dnsProvisioner *dns.DNSProvisioner
+	cfg            config.ProvisionConfig
 }
 
-func NewUpdateTemplate(uowFactory *db.UOWFactory, storage *storage.Storage,
-	templateBuild *build.TemplateBuild, cfg config.ProvisionConfig,
+func NewUpdateTemplate(uowFactory *dbs.UOWFactory, storage *storage.Storage,
+	templateBuild *build.TemplateBuild, dnsProvisioner *dns.DNSProvisioner, cfg config.ProvisionConfig,
 ) *UpdateTemplate {
-	return &UpdateTemplate{uowFactory: uowFactory, storage: storage, templateBuild: templateBuild, cfg: cfg}
+	return &UpdateTemplate{uowFactory: uowFactory, storage: storage, templateBuild: templateBuild, dnsProvisioner: dnsProvisioner, cfg: cfg}
 }
 
 // Refreshes all local template files, rebuilds a template and uploads built statics to s3
@@ -47,7 +50,7 @@ func (c *UpdateTemplate) Execute(ctx context.Context, req *dto.UpdateTemplatesRe
 		templatesToUpdate = append(templatesToUpdate, *req.Name)
 	}
 
-	templateStylesURLs := make(map[string]string, len(templatesToUpdate))
+	templateStylesURLs := make(map[string]db.Template, len(templatesToUpdate))
 	for _, template := range templatesToUpdate {
 		//bucketPath := fmt.Sprintf("%s%s/%s", c.cfg.TemplateSrcBucketPath, "templates", template)
 		localPath := filepath.Join(c.cfg.TemplatesFolder, template)
@@ -64,11 +67,16 @@ func (c *UpdateTemplate) Execute(ctx context.Context, req *dto.UpdateTemplatesRe
 			return fmt.Errorf("err building template, %v", err)
 		}
 
-		templateBuildS3Path := fmt.Sprintf("%s/%s", c.cfg.TemplateBuildBucketPath, template)
+		templateBuildS3Path := fmt.Sprintf("%s%s", c.cfg.TemplateBuildBucketPath, template)
 		if err = c.templateBuild.UploadFiles(ctx, templateBuildS3Path, template, buildOutputDir); err != nil {
 			return fmt.Errorf("err saving build output to s3, %v", err)
 		}
 
+		domain := fmt.Sprintf("%v.%v", template, c.cfg.BaseDomain)
+		previewURL, err := c.dnsProvisioner.MapCfDistributionToS3GetURL(ctx, "/"+templateBuildS3Path, c.cfg.Defaults.S3Domain, domain, c.cfg.Defaults.CertARN)
+		if err != nil {
+			return err
+		}
 		styles := c.storage.ListFiles(ctx, 1, &s3.ListObjectsV2Input{
 			Prefix: aws.String(templateBuildS3Path),
 		})
@@ -77,7 +85,10 @@ func (c *UpdateTemplate) Execute(ctx context.Context, req *dto.UpdateTemplatesRe
 		}
 		stylesPath := fmt.Sprintf("%s/%s", c.cfg.S3ObjectURL, styles[0])
 
-		templateStylesURLs[template] = stylesPath
+		templateStylesURLs[template] = db.Template{
+			Styles:  stylesPath,
+			Preview: previewURL,
+		}
 	}
 
 	uow := c.uowFactory.GetUoW()
@@ -86,8 +97,9 @@ func (c *UpdateTemplate) Execute(ctx context.Context, req *dto.UpdateTemplatesRe
 		return err
 	}
 	defer uow.Finalize(&err)
-	for template, styles := range templateStylesURLs {
-		_, err = tx.Exec(ctx, "UPDATE builder.templates SET styles = $1 WHERE name = $2", styles, template)
+	for name, template := range templateStylesURLs {
+		_, err = tx.Exec(ctx, "UPDATE builder.templates SET styles = $1, preview = $2 WHERE name = $3",
+			template.Styles, template.Preview, name)
 		if err != nil {
 			return fmt.Errorf("err inserting styles url to template, %v", err)
 		}

@@ -34,10 +34,10 @@ func NewDNSProvisioner(awsConfig aws.Config, domainContact *DomainContact) *DNSP
 	}
 }
 
-func (d *DNSProvisioner) MapCfDistributionToS3(ctx context.Context, sitePath, s3WebDomain, domain, certificateArn string) (string, error) {
+func (d *DNSProvisioner) MapCfDistributionToS3(ctx context.Context, sitePath, s3WebDomain, domain, certificateArn string) (*types.Distribution, error) {
 	res, err := d.cfClient.CreateDistribution(ctx, &cloudfront.CreateDistributionInput{
 		DistributionConfig: &types.DistributionConfig{
-			CallerReference: aws.String(time.Now().String()), // must be unique per request, used for idempotency
+			CallerReference: aws.String(sitePath), // must be unique per request, used for idempotency
 			Comment:         aws.String("Distribution for site " + sitePath),
 
 			Enabled:           aws.Bool(true),
@@ -104,9 +104,25 @@ func (d *DNSProvisioner) MapCfDistributionToS3(ctx context.Context, sitePath, s3
 	})
 	if err != nil {
 		slog.Error("err mapping s3 to cloudfront distr", "cf", err)
+		return nil, err
+	}
+	return res.Distribution, nil
+}
+
+func (d *DNSProvisioner) MapCfDistributionToS3GetURL(ctx context.Context, sitePath, s3WebDomain, domain, certificateArn string) (string, error) {
+	distribution, err := d.MapCfDistributionToS3(ctx, sitePath, s3WebDomain, domain, certificateArn)
+	if err != nil {
 		return "", err
 	}
-	return aws.ToString(res.Distribution.Id), nil
+	return aws.ToString(distribution.DomainName), nil
+}
+
+func (d *DNSProvisioner) MapCfDistributionToS3GetID(ctx context.Context, sitePath, s3WebDomain, domain, certificateArn string) (string, error) {
+	distribution, err := d.MapCfDistributionToS3(ctx, sitePath, s3WebDomain, domain, certificateArn)
+	if err != nil {
+		return "", err
+	}
+	return aws.ToString(distribution.Id), nil
 }
 
 func (d *DNSProvisioner) WaitAndGetDistribution(ctx context.Context, distributionID string) (string, error) {

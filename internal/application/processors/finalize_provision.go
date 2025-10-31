@@ -102,7 +102,7 @@ func (c *FinalizeProvision) Handle(ctx context.Context, event events.FinalizePro
 
 	eventRepo := repo.NewEventRepo(tx)
 	if err = eventRepo.InsertEvent(ctx, sendMailEvent); err != nil {
-		return uow, fmt.Errorf("error inserting mail event, %v", err)
+		return uow, err
 	}
 
 	return uow, nil

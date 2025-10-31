@@ -235,6 +235,13 @@ func (b *TemplateBuild) UploadFiles(ctx context.Context, bucketPath, templateNam
 }
 
 func (b *TemplateBuild) ClearTemplateFilesLocally(root string) error {
+	exists, err := dirExists(root)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return err

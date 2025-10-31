@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
@@ -57,7 +58,7 @@ func NewEventRepo(tx pgx.Tx) *EventRepo {
 func (e *EventRepo) InsertEvent(ctx context.Context, event shared.Event) error {
 	payload, err := json.Marshal(event)
 	if err != nil {
-		return err
+		return fmt.Errorf("err marshalling event payload, %v", err)
 	}
 	outbox := db.Outbox{
 		Event:     event.GetType(),
@@ -68,7 +69,7 @@ func (e *EventRepo) InsertEvent(ctx context.Context, event shared.Event) error {
 	_, err = e.tx.Exec(ctx, "INSERT INTO builder.outbox (event, status, payload, created_at) VALUES ($1,$2,$3,$4)",
 		outbox.Event, outbox.Status, outbox.Payload, outbox.CreatedAt)
 	if err != nil {
-		return err
+		return fmt.Errorf("err inserting a new event, %v", err)
 	}
 
 	return nil

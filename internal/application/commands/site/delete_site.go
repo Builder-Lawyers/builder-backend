@@ -49,7 +49,7 @@ func (c *DeleteSite) Execute(ctx context.Context, siteID uint64, identity *auth.
 	eventRepo := repo.NewEventRepo(tx)
 	err = eventRepo.InsertEvent(ctx, deactivateSiteEvent)
 	if err != nil {
-		return fmt.Errorf("err inserting event, %v", err)
+		return err
 	}
 
 	return nil

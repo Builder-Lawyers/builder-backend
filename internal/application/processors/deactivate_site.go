@@ -100,7 +100,7 @@ func (c *DeactivateSite) Handle(ctx context.Context, event events.DeactivateSite
 	eventRepo := repo.NewEventRepo(tx)
 	err = eventRepo.InsertEvent(ctx, sendMail)
 	if err != nil {
-		return uow, fmt.Errorf("error creating event, %v", err)
+		return uow, err
 	}
 
 	return uow, nil

@@ -74,3 +74,17 @@ func (s RegistrationConfirmData) GetMailType() MailType {
 func (s RegistrationConfirmData) GetSubject() string {
 	return "Verify your email"
 }
+
+type RegistrationSuccessData struct {
+	Year               string
+	CustomerFirstName  string
+	CustomerSecondName string
+}
+
+func (s RegistrationSuccessData) GetMailType() MailType {
+	return RegistrationSuccess
+}
+
+func (s RegistrationSuccessData) GetSubject() string {
+	return "Registration successful"
+}

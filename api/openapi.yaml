@@ -700,11 +700,16 @@ components:
           type: string
           format: string
           description: url to css file
+        preview:
+          type: string
+          format: string
+          description: url to site's html for preview
       required:
         - id
         - templateName
         - structure
         - styles
+        - preview
 
     DomainAvailability:
       type: object

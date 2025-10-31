@@ -33,7 +33,9 @@ func (c *GetTemplate) Query(ctx context.Context, templateID uint16) (*dto.Templa
 
 	var templateName string
 	var styles sql.NullString
-	err = tx.QueryRow(ctx, "SELECT name, styles FROM builder.templates WHERE id = $1", templateID).Scan(&templateName, &styles)
+	var preview sql.NullString
+	err = tx.QueryRow(ctx, "SELECT name, styles, preview FROM builder.templates WHERE id = $1", templateID).
+		Scan(&templateName, &styles, &preview)
 	if err != nil {
 		return nil, fmt.Errorf("err getting template name")
 	}
@@ -46,6 +48,9 @@ func (c *GetTemplate) Query(ctx context.Context, templateID uint16) (*dto.Templa
 
 	if styles.Valid {
 		templateInfo.Structure = c.getStructureFilePath(templateName)
+	}
+	if preview.Valid {
+		templateInfo.Preview = preview.String
 	}
 
 	return templateInfo, nil
@@ -72,7 +77,7 @@ func (c *GetTemplate) QueryList(ctx context.Context, req *dto.ListTemplatePagina
 
 	rows, err := tx.Query(
 		ctx,
-		`SELECT id, name, styles  
+		`SELECT id, name, styles, preview  
 		 FROM builder.templates 
 		 ORDER BY id ASC 
 		 LIMIT $1 OFFSET $2`,
@@ -87,7 +92,7 @@ func (c *GetTemplate) QueryList(ctx context.Context, req *dto.ListTemplatePagina
 	for rows.Next() {
 		var t dto.TemplateInfo
 		var styles sql.NullString
-		if err := rows.Scan(&t.Id, &t.TemplateName, &styles); err != nil {
+		if err := rows.Scan(&t.Id, &t.TemplateName, &styles, &t.Preview); err != nil {
 			return nil, err
 		}
 		t.Styles = styles.String

@@ -168,6 +168,9 @@ type StripeWebhookRequest map[string]interface{}
 type TemplateInfo struct {
 	Id int `json:"id"`
 
+	// Preview url to site's html for preview
+	Preview string `json:"preview"`
+
 	// Structure url to pages.json file
 	Structure string `json:"structure"`
 

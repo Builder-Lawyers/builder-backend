@@ -94,7 +94,7 @@ func (c *ProvisionSite) Handle(ctx context.Context, event events.SiteAwaitingPro
 
 		domain = fmt.Sprintf("%v.%v", event.Domain, c.cfg.BaseDomain)
 		timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		distributionID, err := c.dnsProvisioner.MapCfDistributionToS3(timeoutCtx, "/sites/"+siteID, c.cfg.Defaults.S3Domain, domain, c.cfg.Defaults.CertARN)
+		distributionID, err := c.dnsProvisioner.MapCfDistributionToS3GetID(timeoutCtx, "/sites/"+siteID, c.cfg.Defaults.S3Domain, domain, c.cfg.Defaults.CertARN)
 		cancel()
 		if err != nil {
 			return nil, err

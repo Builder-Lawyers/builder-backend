@@ -31,8 +31,10 @@ type User struct {
 }
 
 type Template struct {
-	ID   uint8  `db:"id"`
-	Name string `db:"name"`
+	ID      uint8  `db:"id"`
+	Name    string `db:"name"`
+	Styles  string `db:"styles"`
+	Preview string `db:"preview"`
 }
 
 type Outbox struct {

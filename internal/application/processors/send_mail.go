@@ -112,4 +112,5 @@ var mailDataRegistry = map[string]func() mail.MailData{
 	mail.SiteCreatedData{}.GetSubject():         func() mail.MailData { return &mail.SiteCreatedData{} },
 	mail.SiteDeactivatedData{}.GetSubject():     func() mail.MailData { return &mail.SiteDeactivatedData{} },
 	mail.RegistrationConfirmData{}.GetSubject(): func() mail.MailData { return &mail.RegistrationConfirmData{} },
+	mail.RegistrationSuccessData{}.GetSubject(): func() mail.MailData { return &mail.RegistrationSuccessData{} },
 }

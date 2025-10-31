@@ -311,7 +311,7 @@ func (s *Server) VerifyOauthToken(c *fiber.Ctx) error {
 		SameSite: "Strict",                       // protect against CSRF
 	})
 
-	return c.Status(fiber.StatusOK).JSON(verifiedUser)
+	return c.Status(fiber.StatusCreated).JSON(verifiedUser)
 }
 
 func (s *Server) ListPaymentPlans(c *fiber.Ctx) error {

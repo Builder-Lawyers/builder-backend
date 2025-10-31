@@ -55,7 +55,7 @@ type Processors struct {
 
 func NewCommands(uowFactory *db.UOWFactory, storage *storage.Storage, uploadConfig file.UploadConfig,
 	templateBuild *build.TemplateBuild, provisionConfig config.ProvisionConfig, paymentConfig payment.PaymentConfig,
-	oidcConfig authCfg.OIDCConfig, cognito *cognitoidentityprovider.Client,
+	oidcConfig authCfg.OIDCConfig, cognito *cognitoidentityprovider.Client, dnsProvisioner *dns.DNSProvisioner,
 ) *Commands {
 	return &Commands{
 		EnrichContent:  ai.NewEnrichContent(aiCfg.NewOpenAIClient(aiCfg.NewOpenAIConfig())),
@@ -66,7 +66,7 @@ func NewCommands(uowFactory *db.UOWFactory, storage *storage.Storage, uploadConf
 		UpdateSite:     site.NewUpdateSite(uowFactory),
 		DeleteSite:     site.NewDeleteSite(uowFactory),
 		CreateTemplate: template.NewCreateTemplate(uowFactory),
-		UpdateTemplate: template.NewUpdateTemplate(uowFactory, storage, templateBuild, provisionConfig),
+		UpdateTemplate: template.NewUpdateTemplate(uowFactory, storage, templateBuild, dnsProvisioner, provisionConfig),
 	}
 }
 

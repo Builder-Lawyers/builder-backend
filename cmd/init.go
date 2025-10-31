@@ -80,7 +80,7 @@ func Init() {
 	templateBuild := build.NewTemplateBuild(s3, provisionConfig)
 
 	handlers := &application.Handlers{
-		Commands:   application.NewCommands(uowFactory, s3, uploadConfig, templateBuild, provisionConfig, paymentConfig, oidcConfig, cognito),
+		Commands:   application.NewCommands(uowFactory, s3, uploadConfig, templateBuild, provisionConfig, paymentConfig, oidcConfig, cognito, dnsProvisioner),
 		Queries:    application.NewQueries(uowFactory, s3, provisionConfig, dnsProvisioner),
 		Processors: application.NewProcessors(uowFactory, s3, templateBuild, acmCerts, provisionConfig, dnsProvisioner, mailServer),
 	}
