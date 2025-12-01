@@ -179,7 +179,7 @@ func (c *Payment) ListPaymentPlans(ctx context.Context) (*dto.PaymentPlanList, e
 
 	paymentPlans := make([]dto.PaymentPlan, 0, 2)
 
-	rows, err := tx.Query(ctx, "SELECT id, description, price FROM builder.payment_plans")
+	rows, err := tx.Query(ctx, "SELECT id, description, features, price FROM builder.payment_plans")
 	if err != nil {
 		return nil, fmt.Errorf("err getting plans %v", err)
 	}
@@ -187,9 +187,17 @@ func (c *Payment) ListPaymentPlans(ctx context.Context) (*dto.PaymentPlanList, e
 
 	for rows.Next() {
 		var plan dto.PaymentPlan
-		if err = rows.Scan(&plan.Id, &plan.Description, &plan.Price); err != nil {
+		var featuresRaw []byte
+		var features featuresJSON
+		if err = rows.Scan(&plan.Id, &plan.Description, &featuresRaw, &plan.Price); err != nil {
 			return nil, err
 		}
+		err = json.Unmarshal(featuresRaw, &features)
+		if err != nil {
+			return nil, fmt.Errorf("err getting plan info %v", err)
+		}
+		plan.Included = features.Yes
+		plan.Excluded = features.No
 		paymentPlans = append(paymentPlans, plan)
 	}
 	if err := rows.Err(); err != nil {
@@ -351,4 +359,9 @@ func (c *Payment) handlePaymentFailed(ctx context.Context, event stripe.Event) e
 	}
 
 	return nil
+}
+
+type featuresJSON struct {
+	Yes []string `json:"yes"`
+	No  []string `json:"no"`
 }

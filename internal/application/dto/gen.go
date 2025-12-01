@@ -85,6 +85,11 @@ type CreateTemplateResponse struct {
 	Id uint8 `json:"id"`
 }
 
+// DeleteUserRequest defines model for DeleteUserRequest.
+type DeleteUserRequest struct {
+	UserID string `json:"userID"`
+}
+
 // DomainAvailability defines model for DomainAvailability.
 type DomainAvailability struct {
 	Available bool `json:"available"`
@@ -136,8 +141,10 @@ type ListTemplatePaginator struct {
 
 // PaymentPlan defines model for PaymentPlan.
 type PaymentPlan struct {
-	Description string `json:"description"`
-	Id          uint8  `json:"id"`
+	Description string   `json:"description"`
+	Excluded    []string `json:"excluded"`
+	Id          uint8    `json:"id"`
+	Included    []string `json:"included"`
 
 	// Price Price in cents
 	Price int `json:"price"`
@@ -210,11 +217,6 @@ type UserSite struct {
 	SiteID uint64 `json:"siteID"`
 }
 
-// VerifiedUser defines model for VerifiedUser.
-type VerifiedUser struct {
-	UserID openapi_types.UUID `json:"userID"`
-}
-
 // VerifyCode defines model for VerifyCode.
 type VerifyCode struct {
 	Code string `json:"code"`
@@ -260,6 +262,9 @@ type VerifyOauthTokenJSONRequestBody = VerifyOauthToken
 
 // CreateSessionJSONRequestBody defines body for CreateSession for application/json ContentType.
 type CreateSessionJSONRequestBody = CreateSession
+
+// DeleteUserJSONRequestBody defines body for DeleteUser for application/json ContentType.
+type DeleteUserJSONRequestBody = DeleteUserRequest
 
 // VerifyUserJSONRequestBody defines body for VerifyUser for application/json ContentType.
 type VerifyUserJSONRequestBody = VerifyCode

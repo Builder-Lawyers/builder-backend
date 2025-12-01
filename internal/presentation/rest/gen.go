@@ -27,6 +27,9 @@ type ServerInterface interface {
 	// Creates a session from access token
 	// (POST /auth/session)
 	CreateSession(c *fiber.Ctx) error
+	// Deletes user
+	// (DELETE /auth/user)
+	DeleteUser(c *fiber.Ctx) error
 	// Verifies provided confirmation code
 	// (POST /auth/verify)
 	VerifyUser(c *fiber.Ctx) error
@@ -109,6 +112,12 @@ func (siw *ServerInterfaceWrapper) GetSession(c *fiber.Ctx) error {
 func (siw *ServerInterfaceWrapper) CreateSession(c *fiber.Ctx) error {
 
 	return siw.Handler.CreateSession(c)
+}
+
+// DeleteUser operation middleware
+func (siw *ServerInterfaceWrapper) DeleteUser(c *fiber.Ctx) error {
+
+	return siw.Handler.DeleteUser(c)
 }
 
 // VerifyUser operation middleware
@@ -291,6 +300,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Get(options.BaseURL+"/auth/session", wrapper.GetSession)
 
 	router.Post(options.BaseURL+"/auth/session", wrapper.CreateSession)
+
+	router.Delete(options.BaseURL+"/auth/user", wrapper.DeleteUser)
 
 	router.Post(options.BaseURL+"/auth/verify", wrapper.VerifyUser)
 

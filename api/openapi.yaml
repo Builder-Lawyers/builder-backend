@@ -369,7 +369,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VerifiedUser'
+                $ref: '#/components/schemas/SessionInfo'
+          headers:
+            Set-Cookie:
+              description: Session cookie (HttpOnly)
+              schema:
+                type: string
+                example: ID=abc123; HttpOnly; Path=/; Secure
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/VerifiedUser'
         '400':
           $ref: '#/components/responses/BadRequestError'
         '500':
@@ -401,6 +411,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionInfo'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/user:
+    delete:
+      summary: Deletes user
+      description: Deletes user and his identities
+      operationId: deleteUser
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteUserRequest'
+      responses:
+        '204':
+          description: User deleted
         '400':
           $ref: '#/components/responses/BadRequestError'
         '500':
@@ -831,6 +862,15 @@ components:
       required:
         - token
 
+    DeleteUserRequest:
+      type: object
+      properties:
+        userID:
+          type: string
+          example: 021804b8-5071-7049-7034-8853ffd88039
+      required:
+        - userID
+
     CreatePaymentRequest:
       type: object
       properties:
@@ -874,10 +914,20 @@ components:
           type: integer
           description: Price in cents
           example: 800
+        included:
+          type: array
+          items:
+            type: string
+        excluded:
+          type: array
+          items:
+            type: string
       required:
         - id
         - description
         - price
+        - included
+        - excluded
 
     PaymentStatusResponse:
       type: object

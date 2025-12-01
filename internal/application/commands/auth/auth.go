@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type Auth struct {
@@ -139,25 +140,39 @@ func (c *Auth) CreateConfirmationCode(ctx context.Context, req *dto.CreateConfir
 	return nil
 }
 
-func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.VerifiedUser, error) {
+func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.SessionInfo, string, error) {
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer uow.Finalize(&err)
+
+	var status sql.NullString
+	err = tx.QueryRow(ctx, "SELECT u.status FROM builder.confirmation_codes c "+
+		"LEFT JOIN builder.users u "+
+		"ON c.sub_id::uuid = u.id "+
+		"WHERE c.code = $1", req.Code,
+	).Scan(&status)
+	if err != nil {
+		return nil, "", fmt.Errorf("err getting confirmation code, %v", err)
+	}
+
+	if status.Valid && consts.UserStatus(status.String) == consts.UserConfirmed {
+		return nil, "", fmt.Errorf("code is already used to confirm user")
+	}
 
 	var subID uuid.UUID
 	var email string
 	var expiresAt time.Time
 	err = tx.QueryRow(ctx, "SELECT sub_id, email, expires_at FROM builder.confirmation_codes WHERE code = $1", req.Code).Scan(&subID, &email, &expiresAt)
 	if err != nil {
-		return nil, fmt.Errorf("err getting confirmation code, %v", err)
+		return nil, "", fmt.Errorf("err getting confirmation code, %v", err)
 	}
 
 	if expiresAt.Before(time.Now()) {
 		// TODO: clear user from db and cognito so he can re-register
-		return nil, fmt.Errorf("code is expired")
+		return nil, "", fmt.Errorf("code is expired")
 	}
 
 	input := &cognitoidentityprovider.AdminConfirmSignUpInput{
@@ -167,23 +182,23 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 
 	_, err = c.cognito.AdminConfirmSignUp(ctx, input)
 	if err != nil {
-		return nil, fmt.Errorf("failed to confirm user: %v", err)
+		return nil, "", fmt.Errorf("failed to confirm user: %v", err)
 	}
 
 	var userID uuid.UUID
 	err = tx.QueryRow(ctx, "SELECT id FROM builder.user_identities WHERE provider = $1 AND sub = $2", "Cognito", subID).Scan(&userID)
 	if err != nil {
-		return nil, fmt.Errorf("err getting user from cognito sub, %v", err)
+		return nil, "", fmt.Errorf("err getting user from cognito sub, %v", err)
 	}
 
 	_, err = tx.Exec(ctx, "UPDATE builder.users SET status = $1 WHERE id = $2", consts.UserConfirmed, userID)
 	if err != nil {
-		return nil, fmt.Errorf("err updating user status, %v", err)
+		return nil, "", fmt.Errorf("err updating user status, %v", err)
 	}
 
 	_, err = tx.Exec(ctx, "DELETE FROM builder.confirmation_codes WHERE code = $1", req.Code)
 	if err != nil {
-		return nil, fmt.Errorf("err deleting confirmation code")
+		return nil, "", fmt.Errorf("err deleting confirmation code")
 	}
 
 	registrationSuccessData := mail.RegistrationSuccessData{
@@ -199,12 +214,28 @@ func (c *Auth) VerifyCode(ctx context.Context, req *dto.VerifyCode) (*dto.Verifi
 	eventRepo := repo.NewEventRepo(tx)
 	err = eventRepo.InsertEvent(ctx, registrationSuccessMail)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return &dto.VerifiedUser{
-		UserID: userID,
-	}, nil
+	session := db.Session{
+		ID:           uuid.New(),
+		UserID:       userID,
+		RefreshToken: uuid.NewString(),
+		ExpiresAt:    time.Now().Add(time.Hour * time.Duration(c.cfg.SessionLifetimeHours)),
+	}
+
+	_, err = tx.Exec(ctx, "INSERT INTO builder.sessions(id, user_id, refresh_token, expires_at) VALUES ($1,$2,$3,$4)",
+		session.ID, session.UserID, session.RefreshToken, session.ExpiresAt)
+	if err != nil {
+		return nil, "", fmt.Errorf("error creating a session, %v", err)
+	}
+
+	sessionInfo, err := c.getSession(ctx, tx, session.ID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return sessionInfo, session.ID.String(), nil
 }
 
 func (c *Auth) VerifyOauth(ctx context.Context, req *dto.VerifyOauthToken) (*dto.SessionInfo, string, error) {
@@ -324,27 +355,58 @@ func (c *Auth) GetSession(ctx context.Context, id uuid.UUID) (*dto.SessionInfo, 
 	defer uow.Finalize(&err)
 
 	// TODO: retrieve from cache
-	var session dto.SessionInfo
-	var siteID sql.NullInt64
-	err = tx.QueryRow(ctx,
-		"SELECT ss.user_id, u.email, s.id FROM builder.sessions ss "+
-			"JOIN builder.users u "+
-			"ON ss.user_id = u.id "+
-			"LEFT JOIN builder.sites s "+
-			"ON u.id = s.creator_id "+
-			"WHERE ss.id = $1 LIMIT 1", id,
-	).Scan(&session.UserID, &session.Email, &siteID)
+	return c.getSession(ctx, tx, id)
+}
+
+func (c *Auth) DeleteUser(ctx context.Context, req *dto.DeleteUserRequest) error {
+	uow := c.uowFactory.GetUoW()
+	tx, err := uow.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("error getting session, %v", err)
+		return err
+	}
+	defer uow.Finalize(&err)
+
+	_, err = tx.Exec(ctx, "DELETE FROM builder.users WHERE id = $1", req.UserID)
+	if err != nil {
+		return fmt.Errorf("err deleting user from db %v", err)
 	}
 
-	if siteID.Valid {
-		session.UserSite = &dto.UserSite{
-			SiteID: uint64(siteID.Int64),
+	rows, err := tx.Query(ctx, "SELECT provider, sub FROM builder.user_identities WHERE id = $1", req.UserID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var identitiesToDelete []string
+	for rows.Next() {
+		var provider string
+		var identity string
+		if err := rows.Scan(&provider, &identity); err != nil {
+			return err
+		}
+		if provider == "Cognito" {
+			identitiesToDelete = append(identitiesToDelete, identity)
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
 
-	return &session, nil
+	for _, identity := range identitiesToDelete {
+		_, err = c.cognito.AdminDeleteUser(ctx, &cognitoidentityprovider.AdminDeleteUserInput{
+			UserPoolId: &c.cfg.UserPoolID,
+			Username:   aws.String(identity),
+		})
+		if err != nil {
+			return fmt.Errorf("err deleting user from cognito: %v", err)
+		}
+	}
+	_, err = tx.Exec(ctx, "DELETE FROM builder.user_identities WHERE id = $1", req.UserID)
+	if err != nil {
+		return fmt.Errorf("err deleting user identities from db %v", err)
+	}
+
+	return nil
 }
 
 func (c *Auth) GetIdentity(ctx context.Context, id uuid.UUID) (*auth.Identity, error) {
@@ -368,6 +430,30 @@ func (c *Auth) GetIdentity(ctx context.Context, id uuid.UUID) (*auth.Identity, e
 	}
 
 	return &identity, nil
+}
+
+func (c *Auth) getSession(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (*dto.SessionInfo, error) {
+	var session dto.SessionInfo
+	var siteID sql.NullInt64
+	err := tx.QueryRow(ctx,
+		"SELECT ss.user_id, u.email, s.id FROM builder.sessions ss "+
+			"JOIN builder.users u "+
+			"ON ss.user_id = u.id "+
+			"LEFT JOIN builder.sites s "+
+			"ON u.id = s.creator_id "+
+			"WHERE ss.id = $1 LIMIT 1", userID,
+	).Scan(&session.UserID, &session.Email, &siteID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting session, %v", err)
+	}
+
+	if siteID.Valid {
+		session.UserSite = &dto.UserSite{
+			SiteID: uint64(siteID.Int64),
+		}
+	}
+
+	return &session, nil
 }
 
 func (c *Auth) verifyGoogleIDToken(idToken string) (map[string]any, error) {

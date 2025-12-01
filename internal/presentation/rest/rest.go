@@ -281,12 +281,21 @@ func (s *Server) VerifyUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	verifiedUser, err := s.commands.Auth.VerifyCode(c.UserContext(), &req)
+	sessionInfo, sessionID, err := s.commands.Auth.VerifyCode(c.UserContext(), &req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(verifiedUser)
+	c.Cookie(&fiber.Cookie{
+		Name:     "ID",
+		Value:    sessionID,
+		Expires:  time.Now().Add(24 * time.Hour), // 1 day
+		HTTPOnly: true,                           // prevent JS access
+		Secure:   false,                          // TODO: set to true to send only over HTTPS
+		SameSite: "Strict",                       // protect against CSRF
+	})
+
+	return c.Status(fiber.StatusOK).JSON(sessionInfo)
 }
 
 func (s *Server) VerifyOauthToken(c *fiber.Ctx) error {
@@ -312,6 +321,22 @@ func (s *Server) VerifyOauthToken(c *fiber.Ctx) error {
 	})
 
 	return c.Status(fiber.StatusCreated).JSON(verifiedUser)
+}
+
+func (s *Server) DeleteUser(c *fiber.Ctx) error {
+	var req dto.DeleteUserRequest
+	var err error
+	defer logError(&err, "DeleteUser")
+	if err = c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	err = s.commands.Auth.DeleteUser(c.UserContext(), &req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Server) ListPaymentPlans(c *fiber.Ctx) error {
