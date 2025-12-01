@@ -366,12 +366,18 @@ func (c *Auth) DeleteUser(ctx context.Context, req *dto.DeleteUserRequest) error
 	}
 	defer uow.Finalize(&err)
 
-	_, err = tx.Exec(ctx, "DELETE FROM builder.users WHERE id = $1", req.UserID)
+	var userID uuid.UUID
+	err = tx.QueryRow(ctx, "SELECT id FROM builder.users WHERE email = $1", req.Email).Scan(&userID)
+	if err != nil {
+		return fmt.Errorf("err getting user by email %v", err)
+	}
+
+	_, err = tx.Exec(ctx, "DELETE FROM builder.users WHERE id = $1", userID)
 	if err != nil {
 		return fmt.Errorf("err deleting user from db %v", err)
 	}
 
-	rows, err := tx.Query(ctx, "SELECT provider, sub FROM builder.user_identities WHERE id = $1", req.UserID)
+	rows, err := tx.Query(ctx, "SELECT provider, sub FROM builder.user_identities WHERE id = $1", userID)
 	if err != nil {
 		return err
 	}
@@ -401,7 +407,7 @@ func (c *Auth) DeleteUser(ctx context.Context, req *dto.DeleteUserRequest) error
 			return fmt.Errorf("err deleting user from cognito: %v", err)
 		}
 	}
-	_, err = tx.Exec(ctx, "DELETE FROM builder.user_identities WHERE id = $1", req.UserID)
+	_, err = tx.Exec(ctx, "DELETE FROM builder.user_identities WHERE id = $1", userID)
 	if err != nil {
 		return fmt.Errorf("err deleting user identities from db %v", err)
 	}

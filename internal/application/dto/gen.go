@@ -87,7 +87,7 @@ type CreateTemplateResponse struct {
 
 // DeleteUserRequest defines model for DeleteUserRequest.
 type DeleteUserRequest struct {
-	UserID string `json:"userID"`
+	Email string `json:"email"`
 }
 
 // DomainAvailability defines model for DomainAvailability.

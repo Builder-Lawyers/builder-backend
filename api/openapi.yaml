@@ -865,11 +865,11 @@ components:
     DeleteUserRequest:
       type: object
       properties:
-        userID:
+        email:
           type: string
-          example: 021804b8-5071-7049-7034-8853ffd88039
+          example: example@gmail.com
       required:
-        - userID
+        - email
 
     CreatePaymentRequest:
       type: object
