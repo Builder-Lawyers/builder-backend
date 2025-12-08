@@ -17,6 +17,7 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db/repo"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/mail"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
+	"github.com/Builder-Lawyers/builder-backend/pkg/interfaces"
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
@@ -366,20 +367,59 @@ func (c *Auth) DeleteUser(ctx context.Context, req *dto.DeleteUserRequest) error
 	}
 	defer uow.Finalize(&err)
 
+	var errDB error
 	var userID uuid.UUID
+
 	err = tx.QueryRow(ctx, "SELECT id FROM builder.users WHERE email = $1", req.Email).Scan(&userID)
 	if err != nil {
-		return fmt.Errorf("err getting user by email %v", err)
+		errDB = errors.Join(errDB, fmt.Errorf("err getting user by email %w", err))
 	}
 
-	_, err = tx.Exec(ctx, "DELETE FROM builder.users WHERE id = $1", userID)
+	identitiesToDelete, err := c.getUserIdentitiesToDelete(ctx, uow, userID)
 	if err != nil {
-		return fmt.Errorf("err deleting user from db %v", err)
+		errDB = errors.Join(errDB, err)
+	}
+
+	if len(identitiesToDelete) > 0 {
+		for _, identity := range identitiesToDelete {
+			_, err = c.cognito.AdminDeleteUser(ctx, &cognitoidentityprovider.AdminDeleteUserInput{
+				UserPoolId: &c.cfg.UserPoolID,
+				Username:   aws.String(identity),
+			})
+			if err != nil {
+				return fmt.Errorf("err deleting user from cognito: %v", err)
+			}
+		}
+
+		_, err = tx.Exec(ctx, "DELETE FROM builder.user_identities WHERE id = $1", userID)
+		if err != nil {
+			return fmt.Errorf("err deleting user identities from db %v", err)
+		}
+	} else {
+		_, err = c.cognito.AdminDeleteUser(ctx, &cognitoidentityprovider.AdminDeleteUserInput{
+			UserPoolId: &c.cfg.UserPoolID,
+			Username:   aws.String(req.Email),
+		})
+		if err != nil {
+			return fmt.Errorf("err deleting user from cognito by email: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (c *Auth) getUserIdentitiesToDelete(ctx context.Context, uow interfaces.UoW, userID uuid.UUID) ([]string, error) {
+	var errDb error
+	tx := uow.GetTx()
+
+	_, err := tx.Exec(ctx, "DELETE FROM builder.users WHERE id = $1", userID)
+	if err != nil {
+		errDb = errors.Join(errDb, fmt.Errorf("err deleting user from db %w", err))
 	}
 
 	rows, err := tx.Query(ctx, "SELECT provider, sub FROM builder.user_identities WHERE id = $1", userID)
 	if err != nil {
-		return err
+		errDb = errors.Join(errDb, fmt.Errorf("err getting user identities %w", err))
 	}
 	defer rows.Close()
 
@@ -388,31 +428,17 @@ func (c *Auth) DeleteUser(ctx context.Context, req *dto.DeleteUserRequest) error
 		var provider string
 		var identity string
 		if err := rows.Scan(&provider, &identity); err != nil {
-			return err
+			errDb = errors.Join(errDb, fmt.Errorf("err getting user identity %w", err))
 		}
 		if provider == "Cognito" {
 			identitiesToDelete = append(identitiesToDelete, identity)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return err
+		errDb = errors.Join(errDb, fmt.Errorf("err closing rows %w", err))
 	}
 
-	for _, identity := range identitiesToDelete {
-		_, err = c.cognito.AdminDeleteUser(ctx, &cognitoidentityprovider.AdminDeleteUserInput{
-			UserPoolId: &c.cfg.UserPoolID,
-			Username:   aws.String(identity),
-		})
-		if err != nil {
-			return fmt.Errorf("err deleting user from cognito: %v", err)
-		}
-	}
-	_, err = tx.Exec(ctx, "DELETE FROM builder.user_identities WHERE id = $1", userID)
-	if err != nil {
-		return fmt.Errorf("err deleting user identities from db %v", err)
-	}
-
-	return nil
+	return identitiesToDelete, nil
 }
 
 func (c *Auth) GetIdentity(ctx context.Context, id uuid.UUID) (*auth.Identity, error) {
