@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS builder.sites (
     subscription_id VARCHAR(60),
     status VARCHAR(30) NOT NULL,
     fields JSONB,
+    file_id UUID,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ
 );
@@ -34,7 +35,8 @@ CREATE TABLE IF NOT EXISTS builder.templates (
     name VARCHAR(100) NOT NULL,
     fields JSONB,
     styles VARCHAR(255),
-    preview VARCHAR(255)
+    preview VARCHAR(255),
+    file_id UUID
 );
 
 CREATE TABLE IF NOT EXISTS builder.outbox (

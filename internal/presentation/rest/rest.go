@@ -108,15 +108,31 @@ func (s *Server) CreateTemplate(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusNoContent).JSON(resp)
 }
 
-func (s *Server) UpdateTemplates(c *fiber.Ctx) error {
+func (s *Server) RebuildTemplates(c *fiber.Ctx) error {
 	var err error
-	defer logError(&err, "UpdateTemplates")
-	var req dto.UpdateTemplatesRequest
+	defer logError(&err, "RebuildTemplates")
+	var req dto.RebuildTemplatesRequest
 	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
 
-	err = s.commands.UpdateTemplate.Execute(c.UserContext(), &req)
+	err = s.commands.RebuildTemplate.Execute(c.UserContext(), &req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
+func (s *Server) UpdateTemplate(c *fiber.Ctx, id int) error {
+	var err error
+	defer logError(&err, "UpdateTemplates")
+	var req dto.UpdateTemplateRequest
+	if err = c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ErrorResponse{Error: err.Error()})
+	}
+
+	err = s.commands.UpdateTemplate.Execute(c.UserContext(), id, &req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ErrorResponse{Error: err.Error()})
 	}

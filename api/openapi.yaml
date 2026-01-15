@@ -1,3 +1,4 @@
+
 openapi: 3.0.3
 info:
   title: Site Creation API
@@ -182,10 +183,10 @@ paths:
           $ref: '#/components/responses/BadRequestError'
         '500':
           $ref: '#/components/responses/InternalServerError'
-    put:
-      summary: Update templates
+    patch:
+      summary: Rebuild templates
       description: Fetches new template sources and rebuilds them (if no templateName specified, fetches all)
-      operationId: updateTemplates
+      operationId: rebuildTemplates
       tags:
         - Templates
       requestBody:
@@ -193,7 +194,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateTemplatesRequest'
+              $ref: '#/components/schemas/RebuildTemplatesRequest'
       responses:
         '200':
           description: Templates rebuilt successfully
@@ -226,6 +227,31 @@ paths:
           $ref: '#/components/responses/BadRequestError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      summary: Update template
+      description: Updates template info
+      operationId: updateTemplate
+      tags:
+        - Templates
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTemplateRequest'
+      responses:
+        '200':
+          description: Template updated
+        '400':
+          $ref: '#/components/responses/BadRequestError'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /template/list:
@@ -578,6 +604,11 @@ components:
           type: string
           enum: [InCreation, AwaitingProvision, Created]
           example: "Created"
+        fileID:
+          type: string
+          format: uuid
+          example: 021804b8-5071-7049-7034-8853ffd88039
+          description: photo of a template
         fields:
           type: object
           additionalProperties: true
@@ -612,12 +643,24 @@ components:
         - name
         - fields
 
-    UpdateTemplatesRequest:
+    RebuildTemplatesRequest:
       type: object
       properties:
         name:
           type: string
           description: template's name
+
+    UpdateTemplateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: template's name
+        fileID:
+          type: string
+          format: uuid
+          example: 021804b8-5071-7049-7034-8853ffd88039
+          description: photo of a template
 
     CreateTemplateResponse:
       type: object

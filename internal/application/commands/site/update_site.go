@@ -27,6 +27,7 @@ func NewUpdateSite(factory *dbs.UOWFactory) *UpdateSite {
 
 func (c *UpdateSite) Execute(ctx context.Context, siteID uint64, req *dto.UpdateSiteRequest, identity *auth.Identity) (uint64, error) {
 	var site db.Site
+	var domainType consts.ProvisionType
 
 	uow := c.uowFactory.GetUoW()
 	tx, err := uow.Begin()
@@ -35,12 +36,11 @@ func (c *UpdateSite) Execute(ctx context.Context, siteID uint64, req *dto.Update
 	}
 	defer uow.Finalize(&err)
 
-	err = tx.QueryRow(ctx, "SELECT creator_id, template_id, status, fields, subscription_id from builder.sites WHERE id = $1", siteID).Scan(
+	err = tx.QueryRow(ctx, "SELECT creator_id, template_id, status, fields from builder.sites WHERE id = $1", siteID).Scan(
 		&site.CreatorID,
 		&site.TemplateID,
 		&site.Status,
 		&site.Fields,
-		&site.SubscriptionID,
 	)
 	if err != nil {
 		return 0, err
@@ -70,9 +70,14 @@ func (c *UpdateSite) Execute(ctx context.Context, siteID uint64, req *dto.Update
 			if req.Fields != nil {
 				fields = *req.Fields
 			}
+			if req.DomainType == nil {
+				domainType = consts.DefaultDomain
+			} else {
+				domainType = consts.ProvisionType(*req.DomainType)
+			}
 			provisionReq := dto.ProvisionSiteRequest{
 				SiteID:       siteID,
-				DomainType:   consts.ProvisionType(*req.DomainType),
+				DomainType:   domainType,
 				TemplateName: templateName,
 				Domain:       *req.Domain,
 				Fields:       fields,
@@ -107,13 +112,12 @@ func (c *UpdateSite) Execute(ctx context.Context, siteID uint64, req *dto.Update
 		}
 		return siteID, nil
 
-	} else if req.Fields != nil {
-		// update site's template or/and fields
-		_, err = tx.Exec(ctx, "UPDATE builder.sites SET fields = $1, updated_at = $2 WHERE id = $3", req.Fields, time.Now(), siteID)
-		if err != nil {
-			return 0, err
-		}
-		return siteID, nil
+	}
+
+	_, err = tx.Exec(ctx, "UPDATE builder.sites SET fields = COALESCE($1, fields), file_id = COALESCE($2, file_id), updated_at = $3 WHERE id = $4",
+		req.Fields, req.FileID, time.Now(), siteID)
+	if err != nil {
+		return 0, err
 	}
 
 	return siteID, nil

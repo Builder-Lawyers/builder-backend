@@ -63,18 +63,21 @@ type ServerInterface interface {
 	// Update an existing site
 	// (PATCH /sites/{id})
 	UpdateSite(c *fiber.Ctx, id uint64) error
+	// Rebuild templates
+	// (PATCH /template)
+	RebuildTemplates(c *fiber.Ctx) error
 	// Create a new template
 	// (POST /template)
 	CreateTemplate(c *fiber.Ctx) error
-	// Update templates
-	// (PUT /template)
-	UpdateTemplates(c *fiber.Ctx) error
 	// Gets template list with pagination
 	// (POST /template/list)
 	ListTemplates(c *fiber.Ctx) error
 	// Gets template info
 	// (GET /template/{id})
 	GetTemplate(c *fiber.Ctx, id uint16) error
+	// Update template
+	// (PATCH /template/{id})
+	UpdateTemplate(c *fiber.Ctx, id int) error
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -236,16 +239,16 @@ func (siw *ServerInterfaceWrapper) UpdateSite(c *fiber.Ctx) error {
 	return siw.Handler.UpdateSite(c, id)
 }
 
+// RebuildTemplates operation middleware
+func (siw *ServerInterfaceWrapper) RebuildTemplates(c *fiber.Ctx) error {
+
+	return siw.Handler.RebuildTemplates(c)
+}
+
 // CreateTemplate operation middleware
 func (siw *ServerInterfaceWrapper) CreateTemplate(c *fiber.Ctx) error {
 
 	return siw.Handler.CreateTemplate(c)
-}
-
-// UpdateTemplates operation middleware
-func (siw *ServerInterfaceWrapper) UpdateTemplates(c *fiber.Ctx) error {
-
-	return siw.Handler.UpdateTemplates(c)
 }
 
 // ListTemplates operation middleware
@@ -268,6 +271,22 @@ func (siw *ServerInterfaceWrapper) GetTemplate(c *fiber.Ctx) error {
 	}
 
 	return siw.Handler.GetTemplate(c, id)
+}
+
+// UpdateTemplate operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTemplate(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Params("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter id: %w", err).Error())
+	}
+
+	return siw.Handler.UpdateTemplate(c, id)
 }
 
 // FiberServerOptions provides options for the Fiber server.
@@ -325,12 +344,14 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 
 	router.Patch(options.BaseURL+"/sites/:id", wrapper.UpdateSite)
 
-	router.Post(options.BaseURL+"/template", wrapper.CreateTemplate)
+	router.Patch(options.BaseURL+"/template", wrapper.RebuildTemplates)
 
-	router.Put(options.BaseURL+"/template", wrapper.UpdateTemplates)
+	router.Post(options.BaseURL+"/template", wrapper.CreateTemplate)
 
 	router.Post(options.BaseURL+"/template/list", wrapper.ListTemplates)
 
 	router.Get(options.BaseURL+"/template/:id", wrapper.GetTemplate)
+
+	router.Patch(options.BaseURL+"/template/:id", wrapper.UpdateTemplate)
 
 }

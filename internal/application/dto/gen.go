@@ -161,6 +161,12 @@ type PaymentStatusResponse struct {
 	Status              string `json:"status"`
 }
 
+// RebuildTemplatesRequest defines model for RebuildTemplatesRequest.
+type RebuildTemplatesRequest struct {
+	// Name template's name
+	Name *string `json:"name,omitempty"`
+}
+
 // SessionInfo defines model for SessionInfo.
 type SessionInfo struct {
 	Email    string             `json:"email"`
@@ -191,8 +197,11 @@ type UpdateSiteRequest struct {
 	Domain     *string                      `json:"domain,omitempty"`
 	DomainType *UpdateSiteRequestDomainType `json:"domainType,omitempty"`
 	Fields     *map[string]interface{}      `json:"fields,omitempty"`
-	NewStatus  *UpdateSiteRequestNewStatus  `json:"newStatus,omitempty"`
-	TemplateID *uint8                       `json:"templateID,omitempty"`
+
+	// FileID photo of a template
+	FileID     *openapi_types.UUID         `json:"fileID,omitempty"`
+	NewStatus  *UpdateSiteRequestNewStatus `json:"newStatus,omitempty"`
+	TemplateID *uint8                      `json:"templateID,omitempty"`
 }
 
 // UpdateSiteRequestDomainType defines model for UpdateSiteRequest.DomainType.
@@ -206,8 +215,11 @@ type UpdateSiteResponse struct {
 	SiteID uint64 `json:"siteID"`
 }
 
-// UpdateTemplatesRequest defines model for UpdateTemplatesRequest.
-type UpdateTemplatesRequest struct {
+// UpdateTemplateRequest defines model for UpdateTemplateRequest.
+type UpdateTemplateRequest struct {
+	// FileID photo of a template
+	FileID *openapi_types.UUID `json:"fileID,omitempty"`
+
 	// Name template's name
 	Name *string `json:"name,omitempty"`
 }
@@ -284,11 +296,14 @@ type CreateSiteJSONRequestBody = CreateSiteRequest
 // UpdateSiteJSONRequestBody defines body for UpdateSite for application/json ContentType.
 type UpdateSiteJSONRequestBody = UpdateSiteRequest
 
+// RebuildTemplatesJSONRequestBody defines body for RebuildTemplates for application/json ContentType.
+type RebuildTemplatesJSONRequestBody = RebuildTemplatesRequest
+
 // CreateTemplateJSONRequestBody defines body for CreateTemplate for application/json ContentType.
 type CreateTemplateJSONRequestBody = CreateTemplateRequest
 
-// UpdateTemplatesJSONRequestBody defines body for UpdateTemplates for application/json ContentType.
-type UpdateTemplatesJSONRequestBody = UpdateTemplatesRequest
-
 // ListTemplatesJSONRequestBody defines body for ListTemplates for application/json ContentType.
 type ListTemplatesJSONRequestBody = ListTemplatePaginator
+
+// UpdateTemplateJSONRequestBody defines body for UpdateTemplate for application/json ContentType.
+type UpdateTemplateJSONRequestBody = UpdateTemplateRequest

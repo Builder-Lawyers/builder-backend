@@ -101,7 +101,7 @@ func Init() {
 	outboxPoller := scheduler.NewOutboxPoller(handlers.Processors, uowFactory, outboxConfig)
 	go outboxPoller.Start()
 
-	templatesQueuePoller := queue.NewTemplateChangesPoller(sqsClient, templateChangesConfig, handlers.Commands.UpdateTemplate)
+	templatesQueuePoller := queue.NewTemplateChangesPoller(sqsClient, templateChangesConfig, handlers.Commands.RebuildTemplate)
 	if templateChangesConfig.Enabled {
 		go templatesQueuePoller.Start()
 	}

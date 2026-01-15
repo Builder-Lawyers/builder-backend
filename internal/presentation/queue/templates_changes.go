@@ -18,7 +18,7 @@ import (
 type TemplateChangesPoller struct {
 	client  *sqs.Client
 	cfg     TemplateChangesConfig
-	handler *template.UpdateTemplate
+	handler *template.RebuildTemplate
 	stop    chan struct{}
 }
 
@@ -41,7 +41,7 @@ type TemplatesChanges struct {
 	Templates []string `json:"templates"`
 }
 
-func NewTemplateChangesPoller(client *sqs.Client, cfg TemplateChangesConfig, handler *template.UpdateTemplate) *TemplateChangesPoller {
+func NewTemplateChangesPoller(client *sqs.Client, cfg TemplateChangesConfig, handler *template.RebuildTemplate) *TemplateChangesPoller {
 	return &TemplateChangesPoller{client: client, cfg: cfg, stop: make(chan struct{}), handler: handler}
 }
 
@@ -96,7 +96,7 @@ func (p *TemplateChangesPoller) Start() {
 			}
 
 			for changedTemplate, _ := range changedTemplates {
-				err = p.handler.Execute(ctx, &dto.UpdateTemplatesRequest{Name: &changedTemplate})
+				err = p.handler.Execute(ctx, &dto.RebuildTemplatesRequest{Name: &changedTemplate})
 				if err != nil {
 					slog.Error("err updating template", "template", changedTemplate, "err", err)
 				}

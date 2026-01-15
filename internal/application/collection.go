@@ -28,15 +28,16 @@ type Handlers struct {
 }
 
 type Commands struct {
-	EnrichContent  *ai.EnrichContent
-	Auth           *auth.Auth
-	UploadFile     *file.UploadFile
-	Payment        *payment.Payment
-	CreateSite     *site.CreateSite
-	UpdateSite     *site.UpdateSite
-	DeleteSite     *site.DeleteSite
-	CreateTemplate *template.CreateTemplate
-	UpdateTemplate *template.UpdateTemplate
+	EnrichContent   *ai.EnrichContent
+	Auth            *auth.Auth
+	UploadFile      *file.UploadFile
+	Payment         *payment.Payment
+	CreateSite      *site.CreateSite
+	UpdateSite      *site.UpdateSite
+	DeleteSite      *site.DeleteSite
+	CreateTemplate  *template.CreateTemplate
+	RebuildTemplate *template.RebuildTemplate
+	UpdateTemplate  *template.UpdateTemplate
 }
 
 type Queries struct {
@@ -58,15 +59,16 @@ func NewCommands(uowFactory *db.UOWFactory, storage *storage.Storage, uploadConf
 	oidcConfig authCfg.OIDCConfig, cognito *cognitoidentityprovider.Client, dnsProvisioner *dns.DNSProvisioner,
 ) *Commands {
 	return &Commands{
-		EnrichContent:  ai.NewEnrichContent(aiCfg.NewOpenAIClient(aiCfg.NewOpenAIConfig())),
-		Auth:           auth.NewAuth(uowFactory, oidcConfig, cognito),
-		UploadFile:     file.NewUploadFile(uowFactory, storage, uploadConfig),
-		Payment:        payment.NewPayment(uowFactory, paymentConfig),
-		CreateSite:     site.NewCreateSite(uowFactory),
-		UpdateSite:     site.NewUpdateSite(uowFactory),
-		DeleteSite:     site.NewDeleteSite(uowFactory),
-		CreateTemplate: template.NewCreateTemplate(uowFactory),
-		UpdateTemplate: template.NewUpdateTemplate(uowFactory, storage, templateBuild, dnsProvisioner, provisionConfig),
+		EnrichContent:   ai.NewEnrichContent(aiCfg.NewOpenAIClient(aiCfg.NewOpenAIConfig())),
+		Auth:            auth.NewAuth(uowFactory, oidcConfig, cognito),
+		UploadFile:      file.NewUploadFile(uowFactory, storage, uploadConfig),
+		Payment:         payment.NewPayment(uowFactory, paymentConfig),
+		CreateSite:      site.NewCreateSite(uowFactory),
+		UpdateSite:      site.NewUpdateSite(uowFactory),
+		DeleteSite:      site.NewDeleteSite(uowFactory),
+		CreateTemplate:  template.NewCreateTemplate(uowFactory),
+		RebuildTemplate: template.NewRebuildTemplate(uowFactory, storage, templateBuild, dnsProvisioner, provisionConfig),
+		UpdateTemplate:  template.NewUpdateTemplate(uowFactory),
 	}
 }
 
