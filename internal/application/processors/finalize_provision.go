@@ -40,7 +40,7 @@ func (c *FinalizeProvision) Handle(ctx context.Context, event events.FinalizePro
 	cfDomain, err := c.dnsProvider.WaitAndGetDistribution(timeoutCtx, event.DistributionID)
 	cancel()
 	if err != nil {
-		return nil, fmt.Errorf("err waiting for deployment of distribution, %v", err)
+		return nil, fmt.Errorf("err waiting for deployment of distribution, %w", err)
 	}
 	var baseDomain string
 	firstPart := strings.Index(event.Domain, ".")
@@ -78,10 +78,10 @@ func (c *FinalizeProvision) Handle(ctx context.Context, event events.FinalizePro
 	var userID string
 	var firstName sql.NullString
 	var secondName sql.NullString
-	err = tx.QueryRow(ctx, "SELECT s.creator_id, u.first_name, u.second_name "+
-		"FROM builder.sites s "+
-		"LEFT JOIN builder.users u ON s.creator_id = u.id "+
-		"WHERE s.id = $1", event.SiteID,
+	err = tx.QueryRow(ctx, `SELECT s.creator_id, u.first_name, u.second_name 
+			FROM builder.sites s
+    		LEFT JOIN builder.users u ON s.creator_id = u.id
+			WHERE s.id = $1`, event.SiteID,
 	).Scan(&userID, &firstName, &secondName)
 	if err != nil {
 		return uow, fmt.Errorf("error getting mail data, %v", err)

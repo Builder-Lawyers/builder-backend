@@ -41,7 +41,7 @@ func (b *TemplateBuild) DownloadTemplate(ctx context.Context, templateName strin
 		if err != nil {
 			return err
 		}
-		if len(dir) > 0 {
+		if len(dir) > 1 {
 			return nil
 		}
 	}
@@ -136,7 +136,7 @@ func (b *TemplateBuild) DownloadMissingTemplateFiles(ctx context.Context, path, 
 	if err != nil {
 		return err
 	}
-	if len(dir) > 0 {
+	if len(dir) > 1 {
 		slog.Info("template's sources are present", "template", path)
 		return nil
 	}

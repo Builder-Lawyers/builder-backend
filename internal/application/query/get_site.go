@@ -88,5 +88,7 @@ func (c *GetSite) Query(ctx context.Context, siteIDParam uint64, identity *auth.
 		return &response, err
 	}
 
+	response.Structure = provision.StructurePath
+
 	return &response, nil
 }

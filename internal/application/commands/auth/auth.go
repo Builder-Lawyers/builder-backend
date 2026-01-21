@@ -464,6 +464,20 @@ func (c *Auth) GetIdentity(ctx context.Context, id uuid.UUID) (*auth.Identity, e
 	return &identity, nil
 }
 
+func (c *Auth) ParseCookie(ctx context.Context, cookie string) (uuid.UUID, error) {
+	if c.cfg.Mode == "TEST" {
+		return uuid.New(), nil
+	}
+	if cookie == "" {
+		return uuid.UUID{}, fmt.Errorf("session Cookie is absent")
+	}
+	sessionID, err := uuid.Parse(cookie)
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("error parsing id cookie %v", err)
+	}
+	return sessionID, nil
+}
+
 func (c *Auth) getSession(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (*dto.SessionInfo, error) {
 	var session dto.SessionInfo
 	var siteID sql.NullInt64

@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS builder.provisions (
     domain VARCHAR(80),
     cert_arn VARCHAR(120),
     cloudfront_id VARCHAR(60),
+    structure_path TEXT,
     created_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ
 );

@@ -5,12 +5,12 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
+	"github.com/Builder-Lawyers/builder-backend/internal/application/errs"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
@@ -188,11 +188,13 @@ func (o *OutboxPoller) handleEvent(ctx context.Context, outbox db.Outbox) error 
 		event := db.MapOutboxModelToFinalizeProvision(outbox)
 		uow, err = o.processors.FinalizeProvision.Handle(ctx, event)
 		if err != nil {
-			if strings.Contains(err.Error(), "timed out waiting for distribution to deploy") {
+			var r errs.RetryableError
+			if errors.As(err, &r) {
 				slog.Warn("Distribution still deploying, will retry later")
 				status = consts.NotProcessed
+			} else {
+				status = consts.InError
 			}
-			status = consts.InError
 		}
 		break
 	case events.SendMail{}.GetType():

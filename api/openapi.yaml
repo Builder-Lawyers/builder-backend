@@ -715,6 +715,10 @@ components:
     GetSiteResponse:
       type: object
       properties:
+        structure:
+          type: string
+          format: string
+          description: url to pages.json file
         healthCheckStatus:
           type: string
           enum: [Healthy, Unhealthy, NotProvisioned]
@@ -722,6 +726,7 @@ components:
           type: string
           format: string
       required:
+        - structure
         - healthCheckStatus
         - createdAt
 

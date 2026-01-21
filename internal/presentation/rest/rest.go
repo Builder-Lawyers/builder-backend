@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -235,7 +234,7 @@ func (s *Server) GetSite(c *fiber.Ctx, id uint64) error {
 func (s *Server) GetSession(c *fiber.Ctx) error {
 	var err error
 	defer logError(&err, "GetSession")
-	sessionID, err := getSessionID(c)
+	sessionID, err := s.getSessionID(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{Error: err.Error()})
 	}
@@ -415,7 +414,7 @@ func (s *Server) HandleEvent(c *fiber.Ctx) error {
 }
 
 func (s *Server) getIdentity(c *fiber.Ctx) (*auth.Identity, error) {
-	session, err := getSessionID(c)
+	session, err := s.getSessionID(c)
 	if err != nil {
 		return nil, err
 	}
@@ -427,18 +426,8 @@ func (s *Server) getIdentity(c *fiber.Ctx) (*auth.Identity, error) {
 	return identity, nil
 }
 
-func getSessionID(c *fiber.Ctx) (uuid.UUID, error) {
-	cookie := c.Cookies("ID", "")
-	if cookie == "" {
-		return uuid.UUID{}, fmt.Errorf("session Cookie is absent")
-	}
-
-	sessionID, err := uuid.Parse(cookie)
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("error parsing id cookie %v", err)
-	}
-
-	return sessionID, nil
+func (s *Server) getSessionID(c *fiber.Ctx) (uuid.UUID, error) {
+	return s.commands.Auth.ParseCookie(c.UserContext(), c.Cookies("ID", ""))
 }
 
 func logError(err *error, endpoint string) {

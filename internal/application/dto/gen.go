@@ -120,6 +120,9 @@ type FileUploadedResponse struct {
 type GetSiteResponse struct {
 	CreatedAt         string                           `json:"createdAt"`
 	HealthCheckStatus GetSiteResponseHealthCheckStatus `json:"healthCheckStatus"`
+
+	// Structure url to pages.json file
+	Structure string `json:"structure"`
 }
 
 // GetSiteResponseHealthCheckStatus defines model for GetSiteResponse.HealthCheckStatus.

@@ -52,6 +52,7 @@ type Provision struct {
 	Domain         string                 `db:"domain"`
 	CertificateARN string                 `db:"cert_arn"`
 	CloudfrontID   string                 `db:"cloudfront_id"`
+	StructurePath  string                 `db:"structure_path"`
 	CreatedAt      time.Time              `db:"created_at"`
 	UpdatedAt      time.Time              `db:"updated_at"`
 }

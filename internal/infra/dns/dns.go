@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Builder-Lawyers/builder-backend/internal/application/errs"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudfront"
 	"github.com/aws/aws-sdk-go-v2/service/cloudfront/types"
@@ -152,7 +153,7 @@ func (d *DNSProvisioner) WaitAndGetDistribution(ctx context.Context, distributio
 		time.Sleep(pollInterval)
 	}
 
-	return "", fmt.Errorf("timed out waiting for distribution to deploy")
+	return "", errs.RetryableError{Err: fmt.Errorf("timed out waiting for distribution to deploy")}
 }
 
 func (d *DNSProvisioner) DisableDistribution(ctx context.Context, distributionID, siteID, s3Domain string) error {

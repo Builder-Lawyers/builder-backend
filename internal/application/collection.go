@@ -64,7 +64,7 @@ func NewCommands(uowFactory *db.UOWFactory, storage *storage.Storage, uploadConf
 		UploadFile:      file.NewUploadFile(uowFactory, storage, uploadConfig),
 		Payment:         payment.NewPayment(uowFactory, paymentConfig),
 		CreateSite:      site.NewCreateSite(uowFactory),
-		UpdateSite:      site.NewUpdateSite(uowFactory),
+		UpdateSite:      site.NewUpdateSite(uowFactory, templateBuild, storage, provisionConfig),
 		DeleteSite:      site.NewDeleteSite(uowFactory),
 		CreateTemplate:  template.NewCreateTemplate(uowFactory),
 		RebuildTemplate: template.NewRebuildTemplate(uowFactory, storage, templateBuild, dnsProvisioner, provisionConfig),

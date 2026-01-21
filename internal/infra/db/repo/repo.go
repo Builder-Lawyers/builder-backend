@@ -25,9 +25,9 @@ func NewProvisionRepo(tx pgx.Tx) *ProvisionRepo {
 
 func (p *ProvisionRepo) GetProvisionByID(ctx context.Context, siteID uint64) (*db.Provision, error) {
 	var provision db.Provision
-	query := "SELECT site_id, type, status, domain, cert_arn, cloudfront_id, created_at, updated_at FROM builder.provisions WHERE site_id = $1"
+	query := "SELECT site_id, type, status, domain, cert_arn, cloudfront_id, structure_path, created_at, updated_at FROM builder.provisions WHERE site_id = $1"
 	err := p.tx.QueryRow(ctx, query, siteID).Scan(&provision.SiteID, &provision.Type, &provision.Status,
-		&provision.Domain, &provision.CertificateARN, &provision.CloudfrontID, &provision.CreatedAt, &provision.UpdatedAt)
+		&provision.Domain, &provision.CertificateARN, &provision.CloudfrontID, &provision.StructurePath, &provision.CreatedAt, &provision.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -36,8 +36,9 @@ func (p *ProvisionRepo) GetProvisionByID(ctx context.Context, siteID uint64) (*d
 }
 
 func (p *ProvisionRepo) InsertProvision(ctx context.Context, provision db.Provision) error {
-	_, err := p.tx.Exec(ctx, "INSERT INTO builder.provisions(site_id, type, status, domain, cert_arn, cloudfront_id, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)", provision.SiteID, provision.Type, provision.Status, provision.Domain, provision.CertificateARN,
-		provision.CloudfrontID, provision.CreatedAt, provision.UpdatedAt)
+	_, err := p.tx.Exec(ctx, `INSERT INTO builder.provisions(site_id, type, status, domain, cert_arn, cloudfront_id, structure_path, created_at, updated_at) 
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, provision.SiteID, provision.Type, provision.Status, provision.Domain, provision.CertificateARN,
+		provision.CloudfrontID, provision.StructurePath, provision.CreatedAt, provision.UpdatedAt)
 	if err != nil {
 		return err
 	}

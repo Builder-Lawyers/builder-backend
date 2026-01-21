@@ -55,10 +55,6 @@ func NewProvisionSite(
 // upload dist folder to s3
 func (c *ProvisionSite) Handle(ctx context.Context, event events.SiteAwaitingProvision) (shared.UoW, error) {
 	siteID := strconv.FormatUint(event.SiteID, 10)
-	err := c.templateBuild.DownloadTemplate(ctx, event.TemplateName)
-	if err != nil {
-		return nil, err
-	}
 	// idempotent execution - check if provisioned site static content already exists
 	existingFiles := c.storage.ListFiles(ctx, 1, &s3.ListObjectsV2Input{
 		Prefix: aws.String(siteID),
@@ -68,23 +64,27 @@ func (c *ProvisionSite) Handle(ctx context.Context, event events.SiteAwaitingPro
 	}
 	templatePath := filepath.Join(c.cfg.TemplatesFolder, event.TemplateName)
 	customizeJsonPath := filepath.Join(templatePath+c.cfg.PathToFile, c.cfg.Filename)
-	err = saveFieldsToFile(event.Fields, customizeJsonPath)
+	err := saveFieldsToFile(event.Fields, customizeJsonPath)
 	if err != nil {
 		slog.Error("error saving fields json to template", "build", err)
 		return nil, err
 	}
-
-	slog.Info("Building")
-	buildPath, err := c.templateBuild.RunSiteBuild(ctx, templatePath)
+	defer cleanBuild(customizeJsonPath)
+	err = c.buildSite(ctx, siteID, templatePath, event.TemplateName)
 	if err != nil {
-		return nil, err
-	}
-	cleanBuild(customizeJsonPath)
-
-	if err = c.templateBuild.UploadFiles(ctx, "sites/"+siteID, event.TemplateName, buildPath); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("err building site, %v", err)
 	}
 
+	structureFile, err := os.Open(customizeJsonPath)
+	if err != nil {
+		return nil, fmt.Errorf("err reading site structure file, %v", err)
+	}
+	defer structureFile.Close()
+	// TODO: save structure file to s3
+	structureURL, err := c.storage.UploadFile(ctx, "sites/"+siteID+"/"+c.cfg.Filename, aws.String("application/json"), structureFile)
+	if err != nil {
+		return nil, fmt.Errorf("err uploading structure file, %v", err)
+	}
 	var domain string
 	var newEvent shared.Event
 	var newProvision db.Provision
@@ -113,6 +113,7 @@ func (c *ProvisionSite) Handle(ctx context.Context, event events.SiteAwaitingPro
 			Domain:         domain,
 			CertificateARN: c.cfg.Defaults.CertARN,
 			CloudfrontID:   distributionID,
+			StructurePath:  structureURL,
 			CreatedAt:      time.Now(),
 			UpdatedAt:      time.Now(),
 		}
@@ -147,6 +148,7 @@ func (c *ProvisionSite) Handle(ctx context.Context, event events.SiteAwaitingPro
 			Status:         consts.ProvisionStatusInProcess,
 			Domain:         domain,
 			CertificateARN: certificateARN,
+			StructurePath:  structureURL,
 			CreatedAt:      time.Now(),
 			UpdatedAt:      time.Now(),
 		}
@@ -174,6 +176,21 @@ func (c *ProvisionSite) Handle(ctx context.Context, event events.SiteAwaitingPro
 	}
 
 	return uow, nil
+}
+
+func (c *ProvisionSite) buildSite(ctx context.Context, siteID, templatePath, templateName string) error {
+	err := c.templateBuild.DownloadTemplate(ctx, templateName)
+	if err != nil {
+		return err
+	}
+
+	slog.Info("Building")
+	buildPath, err := c.templateBuild.RunSiteBuild(ctx, templatePath)
+	if err != nil {
+		return err
+	}
+
+	return c.templateBuild.UploadFiles(ctx, "sites/"+siteID, templateName, buildPath)
 }
 
 func saveFieldsToFile(fields json.RawMessage, fullPath string) error {

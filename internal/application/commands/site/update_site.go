@@ -3,8 +3,13 @@ package site
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/Builder-Lawyers/builder-backend/internal/application/consts"
@@ -12,17 +17,24 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/application/errs"
 	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/build"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/config"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db/repo"
+	"github.com/Builder-Lawyers/builder-backend/internal/infra/storage"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
+	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 type UpdateSite struct {
-	uowFactory *dbs.UOWFactory
+	uowFactory    *dbs.UOWFactory
+	templateBuild *build.TemplateBuild
+	storage       *storage.Storage
+	cfg           config.ProvisionConfig
 }
 
-func NewUpdateSite(factory *dbs.UOWFactory) *UpdateSite {
-	return &UpdateSite{uowFactory: factory}
+func NewUpdateSite(factory *dbs.UOWFactory, templateBuild *build.TemplateBuild, storage *storage.Storage, cfg config.ProvisionConfig) *UpdateSite {
+	return &UpdateSite{uowFactory: factory, templateBuild: templateBuild, storage: storage, cfg: cfg}
 }
 
 func (c *UpdateSite) Execute(ctx context.Context, siteID uint64, req *dto.UpdateSiteRequest, identity *auth.Identity) (uint64, error) {
@@ -120,5 +132,100 @@ func (c *UpdateSite) Execute(ctx context.Context, siteID uint64, req *dto.Update
 		return 0, err
 	}
 
+	// if pages.json is changed -> rebuild site, update pages.json on s3
+
+	if req.Fields != nil {
+		var templateName string
+		err = tx.QueryRow(ctx, "SELECT name FROM builder.templates WHERE id = $1", site.TemplateID).Scan(&templateName)
+		if err != nil {
+			return 0, fmt.Errorf("err getting template's name, %v", err)
+		}
+
+		// upload pages.json structure file
+		templatePath := filepath.Join(c.cfg.TemplatesFolder, templateName)
+		customizeJsonPath := filepath.Join(templatePath+c.cfg.PathToFile, c.cfg.Filename)
+		err = saveFieldsToFile(*req.Fields, customizeJsonPath)
+		if err != nil {
+			return 0, err
+		}
+		structureFile, err := os.Open(customizeJsonPath)
+		if err != nil {
+			return 0, fmt.Errorf("err reading site structure file, %v", err)
+		}
+		defer structureFile.Close()
+		_, err = c.storage.UploadFile(ctx, "sites/"+strconv.FormatUint(site.ID, 10)+"/"+c.cfg.Filename, aws.String("application/json"), structureFile)
+		if err != nil {
+			return 0, fmt.Errorf("err uploading structure file, %v", err)
+		}
+
+		// rebuild and upload site
+		err = c.buildSite(ctx, strconv.FormatUint(siteID, 10), templatePath, templateName)
+		if err != nil {
+			return 0, fmt.Errorf("err building site, %v", err)
+		}
+
+	}
+
 	return siteID, nil
+}
+
+func (c *UpdateSite) buildSite(ctx context.Context, siteID, templatePath, templateName string) error {
+	sitePath := "sites/" + siteID
+	err := c.templateBuild.DownloadTemplate(ctx, templateName)
+	if err != nil {
+		return err
+	}
+	//structureFileKey := fmt.Sprintf("%s/%s", sitePath, c.cfg.Filename)
+	//slog.Info("damn", "fk", structureFileKey, "to", templatePath, "from", sitePath)
+	//err = c.storage.DownloadFiles(ctx, []string{structureFileKey}, templatePath, sitePath)
+	//if err != nil {
+	//	slog.Error("err downloading site's template json", "err", err)
+	//	return err
+	//}
+
+	slog.Info("Building")
+	buildPath, err := c.templateBuild.RunSiteBuild(ctx, templatePath)
+	if err != nil {
+		return err
+	}
+
+	return c.templateBuild.UploadFiles(ctx, sitePath, templateName, buildPath)
+}
+
+func saveFieldsToFile(fields map[string]interface{}, path string) error {
+	jsonBytes, err := json.MarshalIndent(fields, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal fields: %w", err)
+	}
+	if fileExists(path) {
+		err = os.Remove(path)
+		if err != nil {
+			return fmt.Errorf("failed to remove old structure file %s: %w", path, err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
+		return fmt.Errorf("error creating directories for %s: %w", path, err)
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", path, err)
+	}
+	defer file.Close()
+
+	if _, err := file.Write(jsonBytes); err != nil {
+		return fmt.Errorf("failed to write JSON to file %s: %w", path, err)
+	}
+
+	return nil
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return false
+	}
+	return true
 }

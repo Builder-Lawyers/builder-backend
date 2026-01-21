@@ -2,6 +2,8 @@ package site
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/auth"
 	"github.com/Builder-Lawyers/builder-backend/internal/infra/db"
 	dbs "github.com/Builder-Lawyers/builder-backend/pkg/db"
+	"github.com/jackc/pgx/v5"
 )
 
 type CreateSite struct {
@@ -29,6 +32,11 @@ func (c *CreateSite) Execute(ctx context.Context, req *dto.CreateSiteRequest, id
 	}
 	defer uow.Finalize(&err)
 
+	err = c.checkDuplicateSitesByUser(ctx, tx, identity)
+	if err != nil {
+		return 0, err
+	}
+
 	newSite := db.Site{
 		TemplateID: req.TemplateID,
 		CreatorID:  identity.UserID,
@@ -47,4 +55,20 @@ func (c *CreateSite) Execute(ctx context.Context, req *dto.CreateSiteRequest, id
 	}
 
 	return newSite.ID, nil
+}
+
+func (c *CreateSite) checkDuplicateSitesByUser(ctx context.Context, tx pgx.Tx, identity *auth.Identity) error {
+	var duplicateID int64
+	err := tx.QueryRow(ctx, "SELECT id FROM builder.sites WHERE creator_id = $1 AND created_at > $2",
+		identity.UserID, time.Now().Add(-time.Minute*5),
+	).Scan(&duplicateID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// no duplicates, all good
+			return nil
+		}
+		return fmt.Errorf("can't check for duplicate site, %v", err)
+	}
+
+	return fmt.Errorf("site was already created by this user recently")
 }
