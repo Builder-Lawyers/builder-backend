@@ -828,8 +828,12 @@ components:
         siteID:
           type: integer
           format: uint64
+        templateID:
+          type: integer
+          format: uint8
       required:
         - siteID
+        - templateID
 
     CreateSession:
       type: object

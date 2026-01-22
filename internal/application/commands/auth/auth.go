@@ -481,21 +481,23 @@ func (c *Auth) ParseCookie(ctx context.Context, cookie string) (uuid.UUID, error
 func (c *Auth) getSession(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (*dto.SessionInfo, error) {
 	var session dto.SessionInfo
 	var siteID sql.NullInt64
+	var templateID sql.NullInt16
 	err := tx.QueryRow(ctx,
-		"SELECT ss.user_id, u.email, s.id FROM builder.sessions ss "+
+		"SELECT ss.user_id, u.email, s.id, s.template_id FROM builder.sessions ss "+
 			"JOIN builder.users u "+
 			"ON ss.user_id = u.id "+
 			"LEFT JOIN builder.sites s "+
 			"ON u.id = s.creator_id "+
 			"WHERE ss.id = $1 LIMIT 1", userID,
-	).Scan(&session.UserID, &session.Email, &siteID)
+	).Scan(&session.UserID, &session.Email, &siteID, &templateID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting session, %v", err)
 	}
 
 	if siteID.Valid {
 		session.UserSite = &dto.UserSite{
-			SiteID: uint64(siteID.Int64),
+			SiteID:     uint64(siteID.Int64),
+			TemplateID: uint8(templateID.Int16),
 		}
 	}
 
@@ -554,10 +556,11 @@ func (c *Auth) createSessionIfNotExists(ctx context.Context, userID uuid.UUID) (
 	}
 
 	var siteID sql.NullInt64
+	var templateID sql.NullInt16
 	var email string
-	err = tx.QueryRow(ctx, "SELECT s.id, u.email FROM builder.users u "+
+	err = tx.QueryRow(ctx, "SELECT s.id, s.template_id, u.email FROM builder.users u "+
 		"LEFT JOIN builder.sites s ON u.id = s.creator_id "+
-		"WHERE u.id = $1 LIMIT 1", userID).Scan(&siteID, &email)
+		"WHERE u.id = $1 LIMIT 1", userID).Scan(&siteID, &templateID, &email)
 	if err != nil {
 		return nil, "", fmt.Errorf("err getting existing user info, %v", err)
 	}
@@ -569,7 +572,8 @@ func (c *Auth) createSessionIfNotExists(ctx context.Context, userID uuid.UUID) (
 
 	if siteID.Valid {
 		sessionInfo.UserSite = &dto.UserSite{
-			SiteID: uint64(siteID.Int64),
+			SiteID:     uint64(siteID.Int64),
+			TemplateID: uint8(templateID.Int16),
 		}
 	}
 

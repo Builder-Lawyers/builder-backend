@@ -228,7 +228,8 @@ type UpdateTemplateRequest struct {
 
 // UserSite defines model for UserSite.
 type UserSite struct {
-	SiteID uint64 `json:"siteID"`
+	SiteID     uint64 `json:"siteID"`
+	TemplateID uint8  `json:"templateID"`
 }
 
 // VerifyCode defines model for VerifyCode.
