@@ -7,8 +7,8 @@ import (
 	"github.com/Builder-Lawyers/builder-backend/internal/application/events"
 )
 
-func RawMessageToMap(raw json.RawMessage) map[string]interface{} {
-	var result map[string]interface{}
+func RawMessageToMap(raw json.RawMessage) []map[string]interface{} {
+	var result []map[string]interface{}
 	if err := json.Unmarshal(raw, &result); err != nil {
 		slog.Error("error unmarshaling event", "err", err)
 	}
@@ -76,7 +76,7 @@ func MapOutboxModelToDeactivateSite(outbox Outbox) events.DeactivateSite {
 	return deactivateSite
 }
 
-func MapToRawMessage(data map[string]interface{}) json.RawMessage {
+func MapToRawMessage(data []map[string]interface{}) json.RawMessage {
 	bytes, err := json.Marshal(data)
 	if err != nil {
 		slog.Error("error unmarshaling event", "err", err)

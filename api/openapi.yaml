@@ -570,9 +570,15 @@ components:
           type: integer
           format: uint8
         fields:
-          type: object
-          description: json object with all widgets and fields of a site
-          additionalProperties: true
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          example:
+            - label: "Home"
+              path: "/"
+            - label: "About"
+              visible: true
       required:
         - templateID
         - planID
@@ -610,14 +616,15 @@ components:
           example: 021804b8-5071-7049-7034-8853ffd88039
           description: photo of a template
         fields:
-          type: object
-          additionalProperties: true
+          type: array
+          items:
+            type: object
+            additionalProperties: true
           example:
-            title: "My Site"
-            theme: "dark"
-            customSetting:
-              nested: true
-              list: [ 1, 2, 3 ]
+            - label: "Home"
+              path: "/"
+            - label: "About"
+              visible: true
 
     UpdateSiteResponse:
       type: object

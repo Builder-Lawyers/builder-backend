@@ -9,5 +9,5 @@ type ProvisionSiteRequest struct {
 	DomainType   consts.ProvisionType
 	TemplateName string
 	Domain       string
-	Fields       map[string]interface{}
+	Fields       []map[string]interface{}
 }

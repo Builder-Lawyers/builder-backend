@@ -60,10 +60,9 @@ type CreateSession struct {
 
 // CreateSiteRequest defines model for CreateSiteRequest.
 type CreateSiteRequest struct {
-	// Fields json object with all widgets and fields of a site
-	Fields     *map[string]interface{} `json:"fields,omitempty"`
-	PlanID     uint8                   `json:"planID"`
-	TemplateID uint8                   `json:"templateID"`
+	Fields     *[]map[string]interface{} `json:"fields,omitempty"`
+	PlanID     uint8                     `json:"planID"`
+	TemplateID uint8                     `json:"templateID"`
 }
 
 // CreateSiteResponse defines model for CreateSiteResponse.
@@ -199,7 +198,7 @@ type TemplateInfo struct {
 type UpdateSiteRequest struct {
 	Domain     *string                      `json:"domain,omitempty"`
 	DomainType *UpdateSiteRequestDomainType `json:"domainType,omitempty"`
-	Fields     *map[string]interface{}      `json:"fields,omitempty"`
+	Fields     *[]map[string]interface{}    `json:"fields,omitempty"`
 
 	// FileID photo of a template
 	FileID     *openapi_types.UUID         `json:"fileID,omitempty"`

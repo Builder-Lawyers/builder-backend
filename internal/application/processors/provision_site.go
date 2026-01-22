@@ -55,24 +55,36 @@ func NewProvisionSite(
 // upload dist folder to s3
 func (c *ProvisionSite) Handle(ctx context.Context, event events.SiteAwaitingProvision) (shared.UoW, error) {
 	siteID := strconv.FormatUint(event.SiteID, 10)
+	sitePath := "sites/" + siteID
 	// idempotent execution - check if provisioned site static content already exists
 	existingFiles := c.storage.ListFiles(ctx, 1, &s3.ListObjectsV2Input{
 		Prefix: aws.String(siteID),
 	})
 	if len(existingFiles) > 0 {
+		slog.Warn("site already provisioned", "id", siteID)
 		return nil, nil
+	}
+
+	err := c.templateBuild.DownloadTemplate(ctx, event.TemplateName)
+	if err != nil {
+		return nil, err
 	}
 	templatePath := filepath.Join(c.cfg.TemplatesFolder, event.TemplateName)
 	customizeJsonPath := filepath.Join(templatePath+c.cfg.PathToFile, c.cfg.Filename)
-	err := saveFieldsToFile(event.Fields, customizeJsonPath)
+	err = saveFieldsToFile(event.Fields, customizeJsonPath)
 	if err != nil {
 		slog.Error("error saving fields json to template", "build", err)
 		return nil, err
 	}
 	defer cleanBuild(customizeJsonPath)
-	err = c.buildSite(ctx, siteID, templatePath, event.TemplateName)
+
+	slog.Info("Building")
+	buildPath, err := c.templateBuild.RunSiteBuild(ctx, templatePath)
 	if err != nil {
 		return nil, fmt.Errorf("err building site, %v", err)
+	}
+	if err = c.templateBuild.UploadFiles(ctx, sitePath, event.TemplateName, buildPath); err != nil {
+		return nil, err
 	}
 
 	structureFile, err := os.Open(customizeJsonPath)
@@ -80,8 +92,7 @@ func (c *ProvisionSite) Handle(ctx context.Context, event events.SiteAwaitingPro
 		return nil, fmt.Errorf("err reading site structure file, %v", err)
 	}
 	defer structureFile.Close()
-	// TODO: save structure file to s3
-	structureURL, err := c.storage.UploadFile(ctx, "sites/"+siteID+"/"+c.cfg.Filename, aws.String("application/json"), structureFile)
+	structureURL, err := c.storage.UploadFile(ctx, sitePath+"/"+c.cfg.Filename, aws.String("application/json"), structureFile)
 	if err != nil {
 		return nil, fmt.Errorf("err uploading structure file, %v", err)
 	}

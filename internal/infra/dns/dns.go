@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -319,4 +320,18 @@ func (d *DNSProvisioner) DeleteSubdomain(ctx context.Context, baseDomain, domain
 
 	fmt.Println("Record change submitted. Change ID:", aws.ToString(resp.ChangeInfo.Id))
 	return nil
+}
+
+func (d *DNSProvisioner) InvalidateDistribution(ctx context.Context, distributionID string) error {
+	_, err := d.cfClient.CreateInvalidation(ctx, &cloudfront.CreateInvalidationInput{
+		DistributionId: aws.String(distributionID),
+		InvalidationBatch: &types.InvalidationBatch{
+			CallerReference: aws.String(strconv.FormatInt(time.Now().UnixNano(), 10)),
+			Paths: &types.Paths{
+				Quantity: aws.Int32(1),
+				Items:    []string{"/*"},
+			},
+		},
+	})
+	return err
 }
