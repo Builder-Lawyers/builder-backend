@@ -71,6 +71,7 @@ func (c *GetSite) Query(ctx context.Context, siteIDParam uint64, identity *auth.
 		response.HealthCheckStatus = dto.NotProvisioned
 		return &response, nil
 	}
+	response.Structure = provision.StructurePath
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://"+provision.Domain, http.NoBody)
 	if err != nil {
 		slog.Error("error creating request to provisioned site", "siteID", siteID)
@@ -87,8 +88,6 @@ func (c *GetSite) Query(ctx context.Context, siteIDParam uint64, identity *auth.
 		response.HealthCheckStatus = dto.Unhealthy
 		return &response, nil
 	}
-
-	response.Structure = provision.StructurePath
 
 	return &response, nil
 }
