@@ -69,7 +69,7 @@ func (c *GetSite) Query(ctx context.Context, siteIDParam uint64, identity *auth.
 	if err != nil {
 		slog.Error("site is not provisioned yet", "siteID", site)
 		response.HealthCheckStatus = dto.NotProvisioned
-		return &response, err
+		return &response, nil
 	}
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://"+provision.Domain, http.NoBody)
 	if err != nil {
@@ -80,12 +80,12 @@ func (c *GetSite) Query(ctx context.Context, siteIDParam uint64, identity *auth.
 	if err != nil {
 		slog.Error("site is unreachable", "siteID", siteID)
 		response.HealthCheckStatus = dto.Unhealthy
-		return &response, err
+		return &response, nil
 	}
 	if resp.StatusCode != 200 {
 		slog.Error("error response status from site", "siteID", siteID)
 		response.HealthCheckStatus = dto.Unhealthy
-		return &response, err
+		return &response, nil
 	}
 
 	response.Structure = provision.StructurePath
