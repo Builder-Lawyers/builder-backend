@@ -75,7 +75,7 @@ func (c *GetSite) Query(ctx context.Context, siteIDParam uint64, identity *auth.
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://"+provision.Domain, http.NoBody)
 	if err != nil {
 		slog.Error("error creating request to provisioned site", "siteID", siteID)
-		return nil, err
+		return &response, nil
 	}
 	resp, err := c.client.Do(req)
 	if err != nil {

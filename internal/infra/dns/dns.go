@@ -16,6 +16,7 @@ import (
 	rTypes "github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/aws/aws-sdk-go-v2/service/route53domains"
 	rdTypes "github.com/aws/aws-sdk-go-v2/service/route53domains/types"
+	"github.com/google/uuid"
 )
 
 type DNSProvisioner struct {
@@ -39,7 +40,7 @@ func NewDNSProvisioner(awsConfig aws.Config, domainContact *DomainContact) *DNSP
 func (d *DNSProvisioner) MapCfDistributionToS3(ctx context.Context, sitePath, s3WebDomain, domain, certificateArn string) (*types.Distribution, error) {
 	res, err := d.cfClient.CreateDistribution(ctx, &cloudfront.CreateDistributionInput{
 		DistributionConfig: &types.DistributionConfig{
-			CallerReference: aws.String(sitePath), // must be unique per request, used for idempotency
+			CallerReference: aws.String(sitePath + uuid.NewString()), // must be unique per request, used for idempotency
 			Comment:         aws.String("Distribution for site " + sitePath),
 
 			Enabled:           aws.Bool(true),
